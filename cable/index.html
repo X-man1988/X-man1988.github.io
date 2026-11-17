@@ -326,19 +326,46 @@ const CABLE_TYPE_MAP={'骨干光缆':'GYTA','本地光缆':'GYTS','接入光缆'
 function normCableType(v){return CABLE_TYPE_MAP[v]||'其他'}
 const MATERIALS=['接头盒','挂钩','标牌','钢绞线','抱箍','预留架','无','其他'];
 const INV_STATUS=['待回收','已回收','部分回收','已入库','异常'];
+// 授权名单（来自宁波各区县真实名单）；roles 支持一人多岗
 const USERS=[
-  {id:'u_qg_yz', name:'张迁改', role:'mgmt', county:'鄞州区', phone:'138****2201'},
-  {id:'u_qg_hs', name:'李迁改', role:'mgmt', county:'海曙区', phone:'138****2202'},
-  {id:'u_qg_xs', name:'毛松志', role:'mgmt', county:'象山县', phone:'13780071399'},
-  {id:'u_city',  name:'市管理员', role:'city', county:'全市',   phone:'138****0001'},
-  {id:'u_wh_yz', name:'王维护', role:'maint', county:'鄞州区', phone:'139****3301'},
-  {id:'u_wh_hs', name:'赵维护', role:'maint', county:'海曙区', phone:'139****3302'},
-  {id:'u_wh_xs', name:'胡伟峰', role:'maint', county:'象山县', phone:'18888651114'}
+  {id:'u_nh_qg', name:'严东杰', roles:['mgmt'],       county:'宁海县', phone:'13586652511'},
+  {id:'u_nh_wh', name:'李汉平', roles:['maint'],      county:'宁海县', phone:'18858225801'},
+  {id:'u_xs_qg', name:'毛松志', roles:['mgmt'],       county:'象山县', phone:'13780071399'},
+  {id:'u_xs_wh', name:'胡伟峰', roles:['maint'],      county:'象山县', phone:'18888651114'},
+  {id:'u_fh_qg', name:'王洪波', roles:['mgmt'],       county:'奉化区', phone:'13506669666'},
+  {id:'u_fh_wh', name:'励日耐', roles:['maint'],      county:'奉化区', phone:'15888522397'},
+  {id:'u_yy_qg', name:'周杰卿', roles:['mgmt'],       county:'余姚市', phone:'13777930707'},
+  {id:'u_yy_wh', name:'蔡建钢', roles:['maint'],      county:'余姚市', phone:'13777105408'},
+  {id:'u_cx_qg', name:'胡安吉', roles:['mgmt'],       county:'慈溪市', phone:'15888580511'},
+  {id:'u_cx_wh', name:'成威峰', roles:['maint'],      county:'慈溪市', phone:'15888581810'},
+  {id:'u_hs_qg', name:'徐晓栋', roles:['mgmt'],       county:'海曙区', phone:'13967868651'},
+  {id:'u_hs_wh', name:'鲍军',   roles:['maint'],      county:'海曙区', phone:'13486086900'},
+  {id:'u_yz_qg', name:'李宁建', roles:['mgmt'],       county:'鄞州区', phone:'13605745308'},
+  {id:'u_yz_wh', name:'张帆',   roles:['maint'],      county:'鄞州区', phone:'18757410761'},
+  {id:'u_jb_both', name:'沈威',   roles:['mgmt','maint'], county:'江北区', phone:'15057447504'},
+  {id:'u_zh_both', name:'朱锡传', roles:['mgmt','maint'], county:'镇海区', phone:'13777228885'},
+  {id:'u_bl_both', name:'周一霖', roles:['mgmt','maint'], county:'北仑区', phone:'13858281009'},
+  {id:'u_city_1', name:'余科杰', roles:['city'], county:'全市', phone:'13616886305'},
+  {id:'u_city_2', name:'彭军',   roles:['city'], county:'全市', phone:'18858051666'},
+  {id:'u_city_3', name:'林永吉', roles:['city'], county:'全市', phone:'18757483966'},
+  {id:'u_city_4', name:'戴黎',   roles:['city'], county:'全市', phone:'18858001365'},
+  {id:'u_city_5', name:'王树辉', roles:['city'], county:'全市', phone:'13967852530'},
+  {id:'u_city_6', name:'丁枫',   roles:['city'], county:'全市', phone:'13957888907'},
+  {id:'u_city_7', name:'徐达',   roles:['city'], county:'全市', phone:'15990200108'},
+  {id:'u_city_8', name:'舒文斐', roles:['city'], county:'全市', phone:'18815295031'}
 ];
+// 上报时的"指定经办人"白名单 = 各区县迁改管理员
 const WHITELIST={
-  '鄞州区':[{name:'张迁改',phone:'138****2201'},{name:'陈迁改',phone:'138****2211'}],
-  '海曙区':[{name:'李迁改',phone:'138****2202'},{name:'周迁改',phone:'138****2212'}],
-  '象山县':[{name:'毛松志',phone:'13780071399'}]
+  '宁海县':[{name:'严东杰',phone:'13586652511'}],
+  '象山县':[{name:'毛松志',phone:'13780071399'}],
+  '奉化区':[{name:'王洪波',phone:'13506669666'}],
+  '余姚市':[{name:'周杰卿',phone:'13777930707'}],
+  '慈溪市':[{name:'胡安吉',phone:'15888580511'}],
+  '海曙区':[{name:'徐晓栋',phone:'13967868651'}],
+  '鄞州区':[{name:'李宁建',phone:'13605745308'}],
+  '江北区':[{name:'沈威',phone:'15057447504'}],
+  '镇海区':[{name:'朱锡传',phone:'13777228885'}],
+  '北仑区':[{name:'周一霖',phone:'13858281009'}]
 };
 
 function uid(){return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -349,26 +376,26 @@ function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.ge
 function seedDB(){
   const mkRow=(seq,type,name,cores,design,plan,qty,material,pdate)=>({seq,cableType:type,cableName:name,cores,designLen:design,planLen:plan,qty,material,planDate:pdate,handler:'',invStatus:'待回收',remark:''});
   return {
-    currentUser:'u_qg_yz',
+    currentUser:'u_yz_qg',
     orders:[
-      {id:uid(),workNo:'GJ-2026-001',county:'鄞州区',projectName:'鄞州主干光缆割接拆旧',projectNo:'XM-2026-011',cutoverName:'鄞州大道割接',applicant:'张迁改',phone:'138****2201',planDate:daysAgo(3),remark:'逾期示例',
+      {id:uid(),workNo:'GJ-2026-001',county:'鄞州区',projectName:'鄞州主干光缆割接拆旧',projectNo:'XM-2026-011',cutoverName:'鄞州大道割接',applicant:'李宁建',phone:'13605745308',planDate:daysAgo(3),remark:'逾期示例',
        rows:[mkRow(1,'GYTA','鄞州-主干-01',48,3200,3150,3,'接头盒/标牌',daysAgo(3)),mkRow(2,'GYTS','鄞州-接入-07',24,1500,1480,2,'挂钩',daysAgo(3))],
-       status:'reported',createdAt:new Date(Date.now()-6*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-6*864e5)}],dismantle:null,inbound:null,resubmit:null},
-      {id:uid(),workNo:'GJ-2026-002',county:'鄞州区',projectName:'鄞州接入网优化',projectNo:'XM-2026-012',cutoverName:'南部商务区割接',applicant:'张迁改',phone:'138****2201',planDate:daysAgo(1),remark:'',
+       status:'reported',createdAt:new Date(Date.now()-6*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-6*864e5)}],dismantle:null,inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-002',county:'鄞州区',projectName:'鄞州接入网优化',projectNo:'XM-2026-012',cutoverName:'南部商务区割接',applicant:'李宁建',phone:'13605745308',planDate:daysAgo(1),remark:'',
        rows:[mkRow(1,'GYTS','鄞州-本地-12',36,2100,2050,2,'接头盒',daysAgo(1))],
-       status:'pushed',createdAt:new Date(Date.now()-3*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'张迁改',t:fmtTime(Date.now()-2*864e5)}],
-       dismantle:{len:2040,qty:2,by:'张迁改',t:fmtTime(Date.now()-2*864e5),sms:true},inbound:null,resubmit:null},
-      {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'李迁改',phone:'138****2202',planDate:daysAgo(5),remark:'',
+       status:'pushed',createdAt:new Date(Date.now()-3*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'李宁建',t:fmtTime(Date.now()-2*864e5)}],
+       dismantle:{len:2040,qty:2,by:'李宁建',t:fmtTime(Date.now()-2*864e5),sms:true},inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(5),remark:'',
        rows:[mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5))],
-       status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'李迁改',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'赵维护',t:fmtTime(Date.now()-4*864e5)}],
-       dismantle:{len:875,qty:1,by:'李迁改',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,by:'赵维护',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
-      {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'李迁改',phone:'138****2202',planDate:todayStr(),remark:'',
+       status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'鲍军',t:fmtTime(Date.now()-4*864e5)}],
+       dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
+      {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'徐晓栋',phone:'13967868651',planDate:todayStr(),remark:'',
        rows:[mkRow(1,'GYTS','海曙-本地-09',48,1800,1780,2,'接头盒/钢绞线',todayStr())],
-       status:'reported',createdAt:new Date(Date.now()-1*864e5).toISOString(),history:[{a:'上报',by:'李迁改',t:fmtTime(Date.now()-1*864e5)}],dismantle:null,inbound:null,resubmit:null},
-      {id:uid(),workNo:'GJ-2026-005',county:'鄞州区',projectName:'鄞州(重报示例)',projectNo:'XM-2026-013',cutoverName:'下应割接',applicant:'张迁改',phone:'138****2201',planDate:todayStr(),remark:'工单号填错待重报',
+       status:'reported',createdAt:new Date(Date.now()-1*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-1*864e5)}],dismantle:null,inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-005',county:'鄞州区',projectName:'鄞州(重报示例)',projectNo:'XM-2026-013',cutoverName:'下应割接',applicant:'李宁建',phone:'13605745308',planDate:todayStr(),remark:'工单号填错待重报',
        rows:[mkRow(1,'其他','鄞州-其他-02',12,600,590,1,'无',todayStr())],
-       status:'reported',createdAt:new Date(Date.now()-2*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-2*864e5)}],dismantle:null,inbound:null,
-       resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'张迁改',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}}
+       status:'reported',createdAt:new Date(Date.now()-2*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-2*864e5)}],dismantle:null,inbound:null,
+       resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'李宁建',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}}
     ]
   };
 }
@@ -391,9 +418,10 @@ function saveDB(){localStorage.setItem(KEY,JSON.stringify(DB))}
    计算层：过滤 / 待办 / 统计
    ============================================================ */
 function curUser(){return USERS.find(u=>u.id===DB.currentUser)||USERS[0]}
+function hasRole(u,r){return !!u && (u.roles?u.roles.indexOf(r)>=0:u.role===r)}
 function visibleOrders(){
   const u=curUser();
-  if(u.role==='city')return DB.orders.slice();
+  if(hasRole(u,'city'))return DB.orders.slice();
   return DB.orders.filter(o=>o.county===u.county);
 }
 function isOverdue(o){
@@ -408,9 +436,9 @@ function sumField(o,field){return o.rows.reduce((a,r)=>a+(Number(r[field])||0),0
 function getTodo(){
   const u=curUser();const list=visibleOrders();const out=[];
   list.forEach(o=>{
-    if(u.role==='mgmt'&&o.status==='reported')out.push({o,act:'confirmDismantle',label:'确认拆回'});
-    if(u.role==='maint'&&o.status==='pushed')out.push({o,act:'confirmInbound',label:'确认入库'});
-    if(u.role==='city'&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)out.push({o,act:'approveResubmit',label:'审批二次提交'});
+    if(hasRole(u,'mgmt')&&o.status==='reported')out.push({o,act:'confirmDismantle',label:'确认拆回'});
+    if(hasRole(u,'maint')&&o.status==='pushed')out.push({o,act:'confirmInbound',label:'确认入库'});
+    if(hasRole(u,'city')&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)out.push({o,act:'approveResubmit',label:'审批二次提交'});
   });
   out.sort((a,b)=>(isOverdue(b.o)-isOverdue(a.o))||(a.o.planDate||'').localeCompare(b.o.planDate||''));
   return out;
@@ -450,14 +478,19 @@ function verifySMS(){
    ============================================================ */
 function renderIdentity(){
   const u=curUser();
-  document.getElementById('curUserLabel').textContent=u.name+'（'+roleName(u.role)+'·'+u.county+'）';
-  document.getElementById('f_county').value=u.role==='city'?'（市公司无上报权限）':u.county;
+  document.getElementById('curUserLabel').textContent=u.name+'（'+roleName(u)+'·'+u.county+'）';
+  document.getElementById('f_county').value=hasRole(u,'city')?'（市公司无上报权限）':u.county;
   const tabs=document.querySelectorAll('.tab[data-view="form"]');
-  tabs.forEach(t=>t.style.display=u.role==='mgmt'?'':'none');
+  tabs.forEach(t=>t.style.display=hasRole(u,'mgmt')?'':'none');
   const wl=WHITELIST[u.county]||[];
   document.getElementById('f_applicant').innerHTML='<option value="">请选择</option>'+wl.map(w=>`<option value="${esc(w.name)}">${esc(w.name)}</option>`).join('');
 }
-function roleName(r){return {mgmt:'迁改管理员',city:'市公司管理员',maint:'维护管理员'}[r]||r}
+function roleName(u){
+  const map={mgmt:'迁改管理员',city:'市公司管理员',maint:'维护管理员'};
+  if(typeof u==='string')return map[u]||u;
+  const roles=u.roles||[u.role];
+  return roles.map(r=>map[r]||r).join('+');
+}
 
 function renderTodo(){
   const box=document.getElementById('todoBox');const todo=getTodo();
@@ -486,14 +519,14 @@ function renderStats(){
 
 function renderList(){
   const body=document.getElementById('listBody');const list=visibleOrders();const u=curUser();
-  document.getElementById('listScopeNote').textContent=u.role==='city'?'数据范围：全市所有区县（市公司管理员）':`数据范围：仅 ${u.county}（区县数据隔离）`;
+  document.getElementById('listScopeNote').textContent=hasRole(u,'city')?'数据范围：全市所有区县（市公司管理员）':`数据范围：仅 ${u.county}（区县数据隔离）`;
   if(!list.length){body.innerHTML='<tr><td colspan="8" class="muted">暂无数据，去"新建上报"添加一条。</td></tr>';return}
   body.innerHTML=list.map(o=>{
     const ops=[];
     ops.push(`<button class="btn-sm ghost" onclick="openAction('detail','${o.id}')">详情</button>`);
-    if(u.role==='mgmt'&&o.status==='reported')ops.push(`<button class="btn-sm" onclick="openAction('confirmDismantle','${o.id}')">确认拆回</button>`);
-    if(u.role==='maint'&&o.status==='pushed')ops.push(`<button class="btn-sm ok" onclick="openAction('confirmInbound','${o.id}')">确认入库</button>`);
-    if(u.role==='city'&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)ops.push(`<button class="btn-sm" onclick="openAction('approveResubmit','${o.id}')">审批</button>`);
+    if(hasRole(u,'mgmt')&&o.status==='reported')ops.push(`<button class="btn-sm" onclick="openAction('confirmDismantle','${o.id}')">确认拆回</button>`);
+    if(hasRole(u,'maint')&&o.status==='pushed')ops.push(`<button class="btn-sm ok" onclick="openAction('confirmInbound','${o.id}')">确认入库</button>`);
+    if(hasRole(u,'city')&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)ops.push(`<button class="btn-sm" onclick="openAction('approveResubmit','${o.id}')">审批</button>`);
     return `<tr>
       <td>${esc(o.workNo)}</td><td>${esc(o.county)}</td><td class="left">${esc(o.projectName)}</td>
       <td>${o.rows.length}</td><td>${sumField(o,'planLen')}</td>
@@ -560,7 +593,7 @@ function switchTab(v){
 let loginCode='';
 function renderAuthList(){
   const box=document.getElementById('authList');
-  box.innerHTML=USERS.map(u=>`<div class="auth-item"><span>${esc(u.name)} · ${roleName(u.role)}（${esc(u.county)}）</span><span>${esc(u.phone)}</span></div>`).join('');
+  box.innerHTML=USERS.map(u=>`<div class="auth-item"><span>${esc(u.name)} · ${roleName(u)}（${esc(u.county)}）</span><span>${esc(u.phone)}</span></div>`).join('');
 }
 function normalizePhone(p){return String(p||'').replace(/[\s-]/g,'')}
 // 手机号一致性：完整号码精确比对；掩码号码（含*）做脱敏比对（前3后4）
@@ -636,7 +669,7 @@ function onApplicantChange(name){
 }
 function submitOrder(){
   const u=curUser();
-  if(u.role!=='mgmt'){toast('仅区县迁改管理员可上报');return}
+  if(!hasRole(u,'mgmt')){toast('仅区县迁改管理员可上报');return}
   const workNo=document.getElementById('f_workNo').value.trim();
   if(!workNo){toast('请填写割接工单号');return}
   if(DB.orders.find(o=>o.workNo===workNo)){toast('工单号重复，请走二次提交申请');onWorkNoInput();return}
