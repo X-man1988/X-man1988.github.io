@@ -140,18 +140,60 @@ tr:nth-child(even) td{background:#fafbfd}
   .toolbtns .btn{flex:1;justify-content:center}
   .kv{grid-template-columns:92px 1fr}
 }
+/* ---------- login ---------- */
+.login-mask{position:fixed;inset:0;background:linear-gradient(135deg,#1f4e79,#2d6bb0);display:flex;align-items:center;justify-content:center;padding:16px;z-index:80;overflow:auto}
+.login-card{background:#fff;border-radius:18px;width:100%;max-width:430px;padding:26px 26px 22px;box-shadow:0 14px 44px rgba(0,0,0,.28)}
+.login-card h1{font-size:21px;margin:0 0 5px;color:var(--primary);text-align:center}
+.login-card .sub{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:20px}
+.login-card .row{margin-bottom:13px}
+.login-card label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.login-card input{width:100%;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;min-height:46px}
+.login-code-row{display:flex;gap:8px}
+.login-code-row input{flex:1;min-width:0}
+.login-code-row button{white-space:nowrap;min-height:46px;padding:0 12px;font-size:13px;border:none;border-radius:9px;background:var(--primary2);color:#fff;font-weight:600;cursor:pointer}
+.login-sms-tip{display:none;background:#fff8e1;border:1px solid #ffe082;color:#8a5a00;padding:9px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.btn-login{width:100%;min-height:48px;font-size:16px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-login:hover{background:#2d6bb0}
+.auth-list{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+.auth-list h3{font-size:12px;color:var(--muted);margin:0 0 6px;font-weight:700}
+.auth-item{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.auth-item span:last-child{color:var(--primary);font-weight:600;white-space:nowrap}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- 登录页 -->
+<div class="login-mask" id="loginMask">
+  <div class="login-card">
+    <h1>传输线路二次循环平台</h1>
+    <div class="sub">光缆拆旧 · 物料回收 · 盘点入库闭环管理</div>
+    <div class="row"><label>用户名（姓名）</label><input id="loginName" placeholder="请输入授权姓名，如 毛松志" autocomplete="off"></div>
+    <div class="row"><label>手机号</label><input id="loginPhone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入该姓名绑定的手机号" autocomplete="off"></div>
+    <div class="login-sms-tip" id="loginSmsTip"></div>
+    <div class="row"><label>短信验证码</label>
+      <div class="login-code-row">
+        <input id="loginCode" inputmode="numeric" maxlength="6" placeholder="6位验证码">
+        <button onclick="loginSendCode()">获取验证码</button>
+      </div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="auth-list">
+      <h3>授权人员名单（原型演示：验证码点击"获取"后显示在上方）</h3>
+      <div id="authList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none">
 
   <div class="topbar">
     <h1>传输线路二次循环平台 <span style="font-size:12px;font-weight:400;opacity:.8">· 原型 v0.1</span></h1>
     <div class="sub">光缆拆旧 → 物料回收 → 盘点入库 · 多角色协同闭环</div>
     <div class="toprow">
       <div class="identity">
-        <label>当前身份</label>
-        <select id="identitySel" onchange="onIdentityChange(this.value)"></select>
+        <label>当前登录</label>
+        <span id="curUserLabel" style="font-weight:700"></span>
+        <button class="btn" style="margin-left:4px" onclick="logout()">退出登录</button>
       </div>
       <div class="toolbtns">
         <button class="btn solid" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
@@ -277,6 +319,7 @@ tr:nth-child(even) td{background:#fafbfd}
    数据层：load / save / seed
    ============================================================ */
 const KEY='wb_cable_recycle_v1';
+const SESSION_KEY='wb_cable_recycle_session';
 const REGIONS=['海曙区','江北区','鄞州区','镇海区','北仑区','奉化区','余姚市','慈溪市','象山县','宁海县'];
 const CABLE_TYPES=['GYTA','GYTS','ADSS','OPGW','其他'];
 const CABLE_TYPE_MAP={'骨干光缆':'GYTA','本地光缆':'GYTS','接入光缆':'GYTS','GYTA':'GYTA','GYTS':'GYTS','ADSS':'ADSS','OPGW':'OPGW','其他':'其他'};
@@ -406,9 +449,8 @@ function verifySMS(){
    渲染层（各自独立，只读数据、只改自己负责的 DOM，互不调用）
    ============================================================ */
 function renderIdentity(){
-  const sel=document.getElementById('identitySel');
-  sel.innerHTML=USERS.map(u=>`<option value="${u.id}" ${u.id===DB.currentUser?'selected':''}>${u.name}（${roleName(u.role)}·${u.county}）</option>`).join('');
   const u=curUser();
+  document.getElementById('curUserLabel').textContent=u.name+'（'+roleName(u.role)+'·'+u.county+'）';
   document.getElementById('f_county').value=u.role==='city'?'（市公司无上报权限）':u.county;
   const tabs=document.querySelectorAll('.tab[data-view="form"]');
   tabs.forEach(t=>t.style.display=u.role==='mgmt'?'':'none');
@@ -514,7 +556,61 @@ function switchTab(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
   if(v==='form'){initDraft();renderAllDetailRows()}
 }
-function onIdentityChange(id){DB.currentUser=id;saveDB();_draft=null;refreshAll();toast('已切换身份：'+curUser().name)}
+/* ---- 登录鉴权 ---- */
+let loginCode='';
+function renderAuthList(){
+  const box=document.getElementById('authList');
+  box.innerHTML=USERS.map(u=>`<div class="auth-item"><span>${esc(u.name)} · ${roleName(u.role)}（${esc(u.county)}）</span><span>${esc(u.phone)}</span></div>`).join('');
+}
+function normalizePhone(p){return String(p||'').replace(/[\s-]/g,'')}
+// 手机号一致性：完整号码精确比对；掩码号码（含*）做脱敏比对（前3后4）
+function phoneMatch(input,stored){
+  const a=normalizePhone(input), b=normalizePhone(stored);
+  if(!a) return false;
+  if(b.indexOf('*')===-1) return a===b;
+  const parts=b.split('*');
+  const prefix=parts[0], suffix=parts[parts.length-1];
+  return a.length>=b.length && a.indexOf(prefix)===0 && a.slice(-suffix.length)===suffix;
+}
+function findAuthUser(name,phone){
+  const n=String(name||'').trim();
+  return USERS.find(u=>u.name===n && phoneMatch(phone,u.phone))||null;
+}
+function loginSendCode(){
+  const name=document.getElementById('loginName').value;
+  const phone=document.getElementById('loginPhone').value;
+  const u=findAuthUser(name,phone);
+  if(!u){toast('姓名或手机号不在授权名单，无法发送验证码');return}
+  loginCode=String(Math.floor(100000+Math.random()*900000));
+  const tip=document.getElementById('loginSmsTip');
+  tip.style.display='block';
+  tip.innerHTML='<b>短信验证码（原型模拟）：'+loginCode+'</b>　<span style="opacity:.8">正式版将发至 '+normalizePhone(phone)+'</span>';
+  toast('验证码已发送，见上方提示');
+}
+function doLogin(){
+  const name=document.getElementById('loginName').value;
+  const phone=document.getElementById('loginPhone').value;
+  const code=document.getElementById('loginCode').value.trim();
+  const u=findAuthUser(name,phone);
+  if(!u){toast('姓名或手机号不在授权名单');return}
+  if(!loginCode){toast('请先获取验证码');return}
+  if(code!==loginCode){toast('验证码错误');return}
+  localStorage.setItem(SESSION_KEY,u.id);
+  DB.currentUser=u.id;saveDB();_draft=null;
+  document.getElementById('loginMask').style.display='none';
+  document.getElementById('appWrap').style.display='';
+  loginCode='';
+  refreshAll();
+  toast('登录成功：'+u.name);
+}
+function logout(){
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById('loginCode').value='';
+  document.getElementById('loginSmsTip').style.display='none';
+  loginCode='';
+  document.getElementById('appWrap').style.display='none';
+  document.getElementById('loginMask').style.display='flex';
+}
 function newRow(seq){return {seq,cableType:'GYTA',cableName:'',cores:'',designLen:'',planLen:'',qty:'',material:'无',planDate:todayStr(),handler:'',invStatus:'待回收',remark:''}}
 function initDraft(){
   const u=curUser();
@@ -676,8 +772,19 @@ function clearSample(){
    ============================================================ */
 function init(){
   DB=loadDB();
+  renderAuthList();
   document.getElementById('f_applicant').addEventListener('change',e=>onApplicantChange(e.target.value));
-  refreshAll();
+  const sid=localStorage.getItem(SESSION_KEY);
+  const sessionUser=sid&&USERS.find(u=>u.id===sid);
+  if(sessionUser){
+    DB.currentUser=sessionUser.id;
+    document.getElementById('loginMask').style.display='none';
+    document.getElementById('appWrap').style.display='';
+    refreshAll();
+  }else{
+    document.getElementById('loginMask').style.display='flex';
+    document.getElementById('appWrap').style.display='none';
+  }
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
