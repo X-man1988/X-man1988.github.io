@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>传输线路二次循环平台 · 原型</title>
+<!-- 本地方案：单文件 HTML + localStorage，全内联零外链 -->
+<style>
+:root{
+  --primary:#1f4e79; --primary2:#4472c4; --primary-soft:#eaf1fb;
+  --ok:#1a7f37; --ok-soft:#e7f5ec; --warn:#b26a00; --warn-soft:#fff3e0;
+  --danger:#c62828; --danger-soft:#fdecec; --info:#0b6e99;
+  --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --text:#1f2733; --muted:#6b7787;
+  --radius:14px; --shadow:0 2px 10px rgba(31,78,121,.07);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); font-size:15px; line-height:1.55;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+/* ---------- header ---------- */
+.topbar{
+  background:linear-gradient(135deg,var(--primary),#2d6bb0); color:#fff;
+  border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); margin-bottom:16px;
+}
+.topbar h1{font-size:20px;margin:0 0 4px;font-weight:700;letter-spacing:.5px}
+.topbar .sub{font-size:13px;opacity:.85}
+.toprow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:14px}
+.identity{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.identity label{font-size:13px;opacity:.9}
+.identity select{
+  font-size:16px;padding:9px 12px;border-radius:9px;border:none;min-height:44px;
+  background:#fff;color:var(--primary);font-weight:600;max-width:260px
+}
+.toolbtns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{
+  font-size:14px;padding:0 14px;min-height:44px;border:none;border-radius:9px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;
+  background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35);
+}
+.btn:hover{background:rgba(255,255,255,.28)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn.solid{background:#fff;color:var(--primary);border-color:#fff}
+.btn.solid:hover{background:#eaf1fb}
+/* ---------- cards ---------- */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px;border:1px solid var(--line)}
+.card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.card h2 .bar{width:4px;height:18px;background:var(--primary2);border-radius:2px;display:inline-block}
+.muted{color:var(--muted);font-size:13px}
+/* ---------- todo ---------- */
+.todo-item{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;
+  background:var(--primary-soft);margin-bottom:9px;flex-wrap:wrap
+}
+.todo-item.overdue{background:var(--danger-soft);border-left:4px solid var(--danger)}
+.todo-item .t-main{flex:1;min-width:200px}
+.todo-item .t-title{font-weight:600;font-size:14px}
+.todo-item .t-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.todo-item.overdue .t-meta{color:var(--danger);font-weight:600}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-reported{background:var(--warn-soft);color:var(--warn)}
+.b-pushed{background:var(--primary-soft);color:var(--info)}
+.b-inbound{background:var(--ok-soft);color:var(--ok)}
+.b-resubmit{background:#f3e8ff;color:#7b2cbf}
+.b-overdue{background:var(--danger);color:#fff}
+.btn-sm{min-height:36px;padding:0 12px;font-size:13px;border-radius:8px;border:none;cursor:pointer;font-weight:600;background:var(--primary2);color:#fff}
+.btn-sm:hover{background:var(--primary)}
+.btn-sm.ghost{background:#fff;color:var(--primary2);border:1px solid var(--primary2)}
+.btn-sm.danger{background:var(--danger)}
+.btn-sm.ok{background:var(--ok)}
+/* ---------- stats ---------- */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.stat .num{font-size:26px;font-weight:800;color:var(--primary)}
+.stat .lbl{font-size:12px;color:var(--muted);margin-top:2px}
+.stat.ok .num{color:var(--ok)} .stat.warn .num{color:var(--warn)} .stat.danger .num{color:var(--danger)}
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:6px;border-bottom:2px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tab{
+  padding:11px 18px;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;
+  border:none;background:none;border-bottom:3px solid transparent;white-space:nowrap;min-height:44px
+}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary2)}
+.view{display:none} .view.active{display:block}
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
+th,td{border:1px solid var(--line);padding:9px 8px;text-align:center;vertical-align:middle}
+th{background:var(--primary2);color:#fff;font-weight:600;position:sticky;top:0}
+td.left,th.left{text-align:left}
+tr:nth-child(even) td{background:#fafbfd}
+.row-actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+/* ---------- form ---------- */
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field input,.field select{
+  width:100%;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;min-height:44px;
+  background:#fff;color:var(--text)
+}
+.field input[readonly]{background:#f2f5f9;color:var(--muted)}
+.detail-table input,.detail-table select{font-size:15px;padding:6px;width:100%;border:1px solid var(--line);border-radius:6px;min-height:38px}
+.detail-table td{padding:5px}
+.form-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.total-line{font-weight:700;color:var(--primary);background:var(--primary-soft)}
+.total-line td{border:1px solid var(--line);padding:9px 8px;text-align:center}
+/* ---------- modal ---------- */
+.mask{position:fixed;inset:0;background:rgba(15,25,40,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.mask.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:88vh;overflow:auto;padding:22px}
+.modal h3{margin:0 0 12px;font-size:18px;color:var(--primary)}
+.modal .row{margin-bottom:12px}
+.modal .row label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.modal .row input,.modal .row select,.modal .row textarea{
+  width:100%;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;min-height:44px
+}
+.modal textarea{min-height:80px;resize:vertical}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.sms-tip{background:#fff8e1;border:1px solid #ffe082;color:#8a5a00;padding:9px 12px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13px;margin:10px 0}
+.kv .k{color:var(--muted)}
+.timeline{border-left:2px solid var(--line);margin:10px 0 0 6px;padding-left:14px}
+.timeline .ev{position:relative;padding:4px 0;font-size:12px;color:var(--muted)}
+.timeline .ev::before{content:"";position:absolute;left:-20px;top:10px;width:8px;height:8px;border-radius:50%;background:var(--primary2)}
+/* ---------- toast / hint ---------- */
+#toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#263444;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+.hint{background:var(--warn-soft);border:1px solid #ffd699;color:var(--warn);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;display:none}
+.hint.show{display:block}
+/* ---------- responsive ---------- */
+@media(max-width:768px){
+  .wrap{padding:10px} .card{padding:14px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .form-grid{grid-template-columns:1fr}
+  .topbar h1{font-size:18px}
+  .toprow{flex-direction:column;align-items:stretch}
+  .identity select{max-width:100%;width:100%}
+  .toolbtns .btn{flex:1;justify-content:center}
+  .kv{grid-template-columns:92px 1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <h1>传输线路二次循环平台 <span style="font-size:12px;font-weight:400;opacity:.8">· 原型 v0.1</span></h1>
+    <div class="sub">光缆拆旧 → 物料回收 → 盘点入库 · 多角色协同闭环</div>
+    <div class="toprow">
+      <div class="identity">
+        <label>当前身份</label>
+        <select id="identitySel" onchange="onIdentityChange(this.value)"></select>
+      </div>
+      <div class="toolbtns">
+        <button class="btn solid" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
+        <button class="btn" onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 5h14"/></svg>导入恢复</button>
+        <button class="btn" onclick="clearSample()">清空示例</button>
+        <button class="btn" onclick="clearAll()">清空全部</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
+      </div>
+    </div>
+  </div>
+
+  <div class="hint" id="backupHint"></div>
+
+  <div class="card">
+    <h2><span class="bar"></span>今天要处理</h2>
+    <div id="todoBox"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="bar"></span>数据概览</h2>
+    <div class="stats-grid" id="statsBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-view="list" onclick="switchTab('list')">工单列表</button>
+      <button class="tab" data-view="form" onclick="switchTab('form')">新建上报</button>
+      <button class="tab" data-view="help" onclick="switchTab('help')">流程说明</button>
+    </div>
+
+    <!-- 列表 -->
+    <div class="view active" id="view-list">
+      <div class="muted" id="listScopeNote" style="margin-bottom:10px"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>割接工单号</th><th>区县</th><th>工程/项目</th><th>明细行数</th>
+            <th>计划回收合计(米)</th><th>状态</th><th>上报时间</th><th>操作</th>
+          </tr></thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 上报 -->
+    <div class="view" id="view-form">
+      <div class="field" style="margin-bottom:14px;background:var(--primary-soft);padding:12px;border-radius:10px">
+        <div style="font-size:13px;color:var(--primary);font-weight:600">
+          上报规则：一个割接工单号 = 一整张盘点表。工单号不可重复，重复需走"二次提交申请"由市公司管理员审批。
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>割接工单号 *（唯一）</label><input id="f_workNo" placeholder="如 GJ-2026-001" oninput="onWorkNoInput()"></div>
+        <div class="field"><label>区县（自动带出）</label><input id="f_county" readonly></div>
+        <div class="field"><label>工程/项目名称</label><input id="f_projectName"></div>
+        <div class="field"><label>项目单号</label><input id="f_projectNo"></div>
+        <div class="field"><label>割接名称</label><input id="f_cutoverName"></div>
+        <div class="field"><label>指定经办人（白名单）</label>
+          <select id="f_applicant"><option value="">请选择</option></select>
+        </div>
+        <div class="field"><label>经办人手机号（自动）</label><input id="f_phone" readonly></div>
+        <div class="field"><label>计划回收完成日期</label><input id="f_planDate" type="date"></div>
+        <div class="field"><label>备注</label><input id="f_remark"></div>
+      </div>
+      <div id="dupHint" class="hint" style="display:none"></div>
+      <h2 style="font-size:15px;margin:8px 0 10px"><span class="bar"></span>盘点明细（对应原表全部字段）</h2>
+      <div class="table-wrap">
+        <table class="detail-table">
+          <thead><tr>
+            <th style="min-width:42px">序号</th>
+            <th style="min-width:96px">光缆类型</th>
+            <th style="min-width:120px">光缆名称</th>
+            <th style="min-width:70px">芯数</th>
+            <th style="min-width:96px">设计回收(米)</th>
+            <th style="min-width:104px">计划回收长度(米)</th>
+            <th style="min-width:96px">回收数量(盘/段)</th>
+            <th style="min-width:130px">配套回收物料</th>
+            <th style="min-width:120px">计划完成日期</th>
+            <th style="min-width:110px">经办班组/人</th>
+            <th style="min-width:96px">盘点状态</th>
+            <th style="min-width:130px">备注</th>
+            <th style="min-width:52px">操作</th>
+          </tr></thead>
+          <tbody id="detailBody"></tbody>
+          <tfoot><tr class="total-line">
+            <td colspan="5">合计</td>
+            <td id="sum_planLen">0</td>
+            <td id="sum_qty">0</td>
+            <td colspan="5"></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="form-foot">
+        <button class="btn-sm ghost" onclick="addRow()">+ 增加一行</button>
+        <button class="btn-sm" onclick="submitOrder()">提交上报</button>
+        <span class="muted" id="formTip"></span>
+      </div>
+    </div>
+
+    <!-- 流程说明 -->
+    <div class="view" id="view-help">
+      <div class="timeline">
+        <div class="ev"><b>① 区县迁改管理员上报</b>：按区县、指定人+手机号验证、工单号唯一校验 → 提交整张盘点表</div>
+        <div class="ev"><b>② 区县迁改管理员确认拆回</b>：现场核实拆回长度/数量，短信验证</div>
+        <div class="ev"><b>③ 系统自动推送</b>：把拆回信息推送给本区县传输线路维护管理员（站内待办）</div>
+        <div class="ev"><b>④ 区县维护管理员确认入库</b>：核对实际入库数量，短信验证 → 闭环</div>
+        <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
+      </div>
+      <p class="muted" style="margin-top:14px">原型说明：短信验证码为模拟（点击获取后页面显示验证码）；数据存本地浏览器，换设备不同步；正式版将接资料库/服务器实现在线同步与真实短信。</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- 通用弹窗 -->
+<div class="mask" id="mask" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   数据层：load / save / seed
+   ============================================================ */
+const KEY='wb_cable_recycle_v1';
+const REGIONS=['海曙区','江北区','鄞州区','镇海区','北仑区','奉化区','余姚市','慈溪市','象山县','宁海县'];
+const CABLE_TYPES=['GYTA','GYTS','ADSS','OPGW','其他'];
+const CABLE_TYPE_MAP={'骨干光缆':'GYTA','本地光缆':'GYTS','接入光缆':'GYTS','GYTA':'GYTA','GYTS':'GYTS','ADSS':'ADSS','OPGW':'OPGW','其他':'其他'};
+function normCableType(v){return CABLE_TYPE_MAP[v]||'其他'}
+const MATERIALS=['接头盒','挂钩','标牌','钢绞线','抱箍','预留架','无','其他'];
+const INV_STATUS=['待回收','已回收','部分回收','已入库','异常'];
+const USERS=[
+  {id:'u_qg_yz', name:'张迁改', role:'mgmt', county:'鄞州区', phone:'138****2201'},
+  {id:'u_qg_hs', name:'李迁改', role:'mgmt', county:'海曙区', phone:'138****2202'},
+  {id:'u_qg_xs', name:'毛松志', role:'mgmt', county:'象山县', phone:'13780071399'},
+  {id:'u_city',  name:'市管理员', role:'city', county:'全市',   phone:'138****0001'},
+  {id:'u_wh_yz', name:'王维护', role:'maint', county:'鄞州区', phone:'139****3301'},
+  {id:'u_wh_hs', name:'赵维护', role:'maint', county:'海曙区', phone:'139****3302'},
+  {id:'u_wh_xs', name:'胡伟峰', role:'maint', county:'象山县', phone:'18888651114'}
+];
+const WHITELIST={
+  '鄞州区':[{name:'张迁改',phone:'138****2201'},{name:'陈迁改',phone:'138****2211'}],
+  '海曙区':[{name:'李迁改',phone:'138****2202'},{name:'周迁改',phone:'138****2212'}],
+  '象山县':[{name:'毛松志',phone:'13780071399'}]
+};
+
+function uid(){return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+
+function seedDB(){
+  const mkRow=(seq,type,name,cores,design,plan,qty,material,pdate)=>({seq,cableType:type,cableName:name,cores,designLen:design,planLen:plan,qty,material,planDate:pdate,handler:'',invStatus:'待回收',remark:''});
+  return {
+    currentUser:'u_qg_yz',
+    orders:[
+      {id:uid(),workNo:'GJ-2026-001',county:'鄞州区',projectName:'鄞州主干光缆割接拆旧',projectNo:'XM-2026-011',cutoverName:'鄞州大道割接',applicant:'张迁改',phone:'138****2201',planDate:daysAgo(3),remark:'逾期示例',
+       rows:[mkRow(1,'GYTA','鄞州-主干-01',48,3200,3150,3,'接头盒/标牌',daysAgo(3)),mkRow(2,'GYTS','鄞州-接入-07',24,1500,1480,2,'挂钩',daysAgo(3))],
+       status:'reported',createdAt:new Date(Date.now()-6*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-6*864e5)}],dismantle:null,inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-002',county:'鄞州区',projectName:'鄞州接入网优化',projectNo:'XM-2026-012',cutoverName:'南部商务区割接',applicant:'张迁改',phone:'138****2201',planDate:daysAgo(1),remark:'',
+       rows:[mkRow(1,'GYTS','鄞州-本地-12',36,2100,2050,2,'接头盒',daysAgo(1))],
+       status:'pushed',createdAt:new Date(Date.now()-3*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'张迁改',t:fmtTime(Date.now()-2*864e5)}],
+       dismantle:{len:2040,qty:2,by:'张迁改',t:fmtTime(Date.now()-2*864e5),sms:true},inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'李迁改',phone:'138****2202',planDate:daysAgo(5),remark:'',
+       rows:[mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5))],
+       status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'李迁改',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'赵维护',t:fmtTime(Date.now()-4*864e5)}],
+       dismantle:{len:875,qty:1,by:'李迁改',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,by:'赵维护',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
+      {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'李迁改',phone:'138****2202',planDate:todayStr(),remark:'',
+       rows:[mkRow(1,'GYTS','海曙-本地-09',48,1800,1780,2,'接头盒/钢绞线',todayStr())],
+       status:'reported',createdAt:new Date(Date.now()-1*864e5).toISOString(),history:[{a:'上报',by:'李迁改',t:fmtTime(Date.now()-1*864e5)}],dismantle:null,inbound:null,resubmit:null},
+      {id:uid(),workNo:'GJ-2026-005',county:'鄞州区',projectName:'鄞州(重报示例)',projectNo:'XM-2026-013',cutoverName:'下应割接',applicant:'张迁改',phone:'138****2201',planDate:todayStr(),remark:'工单号填错待重报',
+       rows:[mkRow(1,'其他','鄞州-其他-02',12,600,590,1,'无',todayStr())],
+       status:'reported',createdAt:new Date(Date.now()-2*864e5).toISOString(),history:[{a:'上报',by:'张迁改',t:fmtTime(Date.now()-2*864e5)}],dismantle:null,inbound:null,
+       resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'张迁改',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}}
+    ]
+  };
+}
+function loadDB(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){
+      const d=JSON.parse(raw);
+      // 兼容迁移：把旧的光缆类型值映射到新选项，避免下拉空白
+      (d.orders||[]).forEach(o=>(o.rows||[]).forEach(r=>{r.cableType=normCableType(r.cableType)}));
+      localStorage.setItem(KEY,JSON.stringify(d));
+      return d;
+    }
+  }catch(e){}
+  const db=seedDB();localStorage.setItem(KEY,JSON.stringify(db));return db;
+}
+function saveDB(){localStorage.setItem(KEY,JSON.stringify(DB))}
+
+/* ============================================================
+   计算层：过滤 / 待办 / 统计
+   ============================================================ */
+function curUser(){return USERS.find(u=>u.id===DB.currentUser)||USERS[0]}
+function visibleOrders(){
+  const u=curUser();
+  if(u.role==='city')return DB.orders.slice();
+  return DB.orders.filter(o=>o.county===u.county);
+}
+function isOverdue(o){
+  // 逾期只针对"已上报但未确认拆回"的环节；拆回完成/入库后不再计逾期
+  if(o.status==='inbound'||o.status==='pushed')return false;
+  const d=o.planDate?new Date(o.planDate+'T23:59:59').getTime():0;
+  return d&&Date.now()>d;
+}
+function statusLabel(s){return {reported:'已上报·待确认拆回',pushed:'已确认拆回·待确认入库',inbound:'已入库·闭环'}[s]||s}
+function statusCls(s){return {reported:'b-reported',pushed:'b-pushed',inbound:'b-inbound'}[s]||''}
+function sumField(o,field){return o.rows.reduce((a,r)=>a+(Number(r[field])||0),0)}
+function getTodo(){
+  const u=curUser();const list=visibleOrders();const out=[];
+  list.forEach(o=>{
+    if(u.role==='mgmt'&&o.status==='reported')out.push({o,act:'confirmDismantle',label:'确认拆回'});
+    if(u.role==='maint'&&o.status==='pushed')out.push({o,act:'confirmInbound',label:'确认入库'});
+    if(u.role==='city'&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)out.push({o,act:'approveResubmit',label:'审批二次提交'});
+  });
+  out.sort((a,b)=>(isOverdue(b.o)-isOverdue(a.o))||(a.o.planDate||'').localeCompare(b.o.planDate||''));
+  return out;
+}
+function calcStats(){
+  const l=visibleOrders();
+  return {total:l.length,reported:l.filter(o=>o.status==='reported').length,pushed:l.filter(o=>o.status==='pushed').length,
+    inbound:l.filter(o=>o.status==='inbound').length,overdue:l.filter(isOverdue).length,
+    reapprove:l.filter(o=>o.resubmit&&o.resubmit.need&&o.resubmit.approved===null).length,
+    len:l.reduce((a,o)=>a+sumField(o,'planLen'),0)};
+}
+
+/* ============================================================
+   工具层
+   ============================================================ */
+let toastTimer=null;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('mask').classList.add('show')}
+function closeModal(){document.getElementById('mask').classList.remove('show')}
+let smsCode='';
+function sendSMS(){
+  smsCode=String(Math.floor(100000+Math.random()*900000));
+  const box=document.getElementById('smsBox');
+  if(box){box.style.display='block';box.innerHTML='<b>短信验证码（原型模拟）：'+smsCode+'</b>　<span class="muted">正式版将发送至经办人手机</span>'}
+  toast('验证码已发送（见弹窗提示）');
+}
+function verifySMS(){
+  const v=(document.getElementById('smsInput')?.value||'').trim();
+  if(!smsCode){toast('请先获取验证码');return false}
+  if(v!==smsCode){toast('验证码错误');return false}
+  return true;
+}
+
+/* ============================================================
+   渲染层（各自独立，只读数据、只改自己负责的 DOM，互不调用）
+   ============================================================ */
+function renderIdentity(){
+  const sel=document.getElementById('identitySel');
+  sel.innerHTML=USERS.map(u=>`<option value="${u.id}" ${u.id===DB.currentUser?'selected':''}>${u.name}（${roleName(u.role)}·${u.county}）</option>`).join('');
+  const u=curUser();
+  document.getElementById('f_county').value=u.role==='city'?'（市公司无上报权限）':u.county;
+  const tabs=document.querySelectorAll('.tab[data-view="form"]');
+  tabs.forEach(t=>t.style.display=u.role==='mgmt'?'':'none');
+  const wl=WHITELIST[u.county]||[];
+  document.getElementById('f_applicant').innerHTML='<option value="">请选择</option>'+wl.map(w=>`<option value="${esc(w.name)}">${esc(w.name)}</option>`).join('');
+}
+function roleName(r){return {mgmt:'迁改管理员',city:'市公司管理员',maint:'维护管理员'}[r]||r}
+
+function renderTodo(){
+  const box=document.getElementById('todoBox');const todo=getTodo();
+  if(!todo.length){box.innerHTML='<div class="muted">当前身份暂无待处理事项。</div>';return}
+  box.innerHTML=todo.map(({o,act,label})=>{
+    const over=isOverdue(o);
+    return `<div class="todo-item ${over?'overdue':''}">
+      <div class="t-main">
+        <div class="t-title">${esc(o.workNo)} · ${esc(o.county)} · ${esc(o.projectName)}</div>
+        <div class="t-meta">${over?'⚠ 已逾期 · ':''}计划完成 ${esc(o.planDate||'-')} · 计划回收合计 ${sumField(o,'planLen')} 米</div>
+      </div>
+      ${over?'<span class="badge b-overdue">逾期</span>':`<span class="badge ${statusCls(o.status)}">${statusLabel(o.status)}</span>`}
+      <button class="btn-sm" onclick="openAction('${act}','${o.id}')">${label}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderStats(){
+  const s=calcStats();
+  const cell=(n,l,c='')=>`<div class="stat ${c}"><div class="num">${n}</div><div class="lbl">${l}</div></div>`;
+  document.getElementById('statsBox').innerHTML=
+    cell(s.total,'可见工单总数')+cell(s.reported,'待确认拆回','warn')+cell(s.pushed,'待确认入库')+
+    cell(s.inbound,'已入库闭环','ok')+cell(s.overdue,'逾期','danger')+cell(s.len.toLocaleString(),'计划回收合计(米)')+
+    cell(getTodo().length,'我的待办')+cell(s.reapprove,'待审批重报','warn');
+}
+
+function renderList(){
+  const body=document.getElementById('listBody');const list=visibleOrders();const u=curUser();
+  document.getElementById('listScopeNote').textContent=u.role==='city'?'数据范围：全市所有区县（市公司管理员）':`数据范围：仅 ${u.county}（区县数据隔离）`;
+  if(!list.length){body.innerHTML='<tr><td colspan="8" class="muted">暂无数据，去"新建上报"添加一条。</td></tr>';return}
+  body.innerHTML=list.map(o=>{
+    const ops=[];
+    ops.push(`<button class="btn-sm ghost" onclick="openAction('detail','${o.id}')">详情</button>`);
+    if(u.role==='mgmt'&&o.status==='reported')ops.push(`<button class="btn-sm" onclick="openAction('confirmDismantle','${o.id}')">确认拆回</button>`);
+    if(u.role==='maint'&&o.status==='pushed')ops.push(`<button class="btn-sm ok" onclick="openAction('confirmInbound','${o.id}')">确认入库</button>`);
+    if(u.role==='city'&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)ops.push(`<button class="btn-sm" onclick="openAction('approveResubmit','${o.id}')">审批</button>`);
+    return `<tr>
+      <td>${esc(o.workNo)}</td><td>${esc(o.county)}</td><td class="left">${esc(o.projectName)}</td>
+      <td>${o.rows.length}</td><td>${sumField(o,'planLen')}</td>
+      <td><span class="badge ${statusCls(o.status)}">${statusLabel(o.status)}</span>${o.resubmit&&o.resubmit.need&&o.resubmit.approved===null?'<br><span class="badge b-resubmit">待审批重报</span>':''}</td>
+      <td>${esc(fmtTime(o.createdAt))}</td>
+      <td><div class="row-actions">${ops.join('')}</div></td>
+    </tr>`;
+  }).join('');
+  const hint=document.getElementById('backupHint');
+  if(DB.orders.length>=30){hint.textContent='数据已积累 '+DB.orders.length+' 条，建议点击右上角「导出备份」保存一份。';hint.classList.add('show')}
+  else hint.classList.remove('show');
+}
+
+function renderAllDetailRows(){
+  const body=document.getElementById('detailBody');
+  body.innerHTML=_draft.rows.map((r,i)=>rowHTML(r,i)).join('');
+  recalcTotal();
+}
+function rowHTML(r,i){
+  const opt=(arr,v)=>arr.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
+  return `<tr>
+    <td>${i+1}</td>
+    <td><select onchange="setCell(${i},'cableType',this.value)">${opt(CABLE_TYPES,r.cableType)}</select></td>
+    <td><input value="${esc(r.cableName)}" oninput="setCell(${i},'cableName',this.value)"></td>
+    <td><input type="number" value="${esc(r.cores)}" oninput="setCell(${i},'cores',this.value)"></td>
+    <td><input type="number" step="0.1" value="${esc(r.designLen)}" oninput="setCell(${i},'designLen',this.value);recalcTotal()"></td>
+    <td><input type="number" step="0.1" value="${esc(r.planLen)}" oninput="setCell(${i},'planLen',this.value);recalcTotal()"></td>
+    <td><input type="number" value="${esc(r.qty)}" oninput="setCell(${i},'qty',this.value);recalcTotal()"></td>
+    <td><select onchange="setCell(${i},'material',this.value)">${opt(MATERIALS,r.material)}</select></td>
+    <td><input type="date" value="${esc(r.planDate)}" oninput="setCell(${i},'planDate',this.value)"></td>
+    <td><input value="${esc(r.handler)}" oninput="setCell(${i},'handler',this.value)"></td>
+    <td><select onchange="setCell(${i},'invStatus',this.value)">${opt(INV_STATUS,r.invStatus)}</select></td>
+    <td><input value="${esc(r.remark)}" oninput="setCell(${i},'remark',this.value)"></td>
+    <td><button class="btn-sm danger" onclick="delRow(${i})">删</button></td>
+  </tr>`;
+}
+function recalcTotal(){
+  let a=0,b=0;_draft.rows.forEach(r=>{a+=Number(r.planLen)||0;b+=Number(r.qty)||0});
+  document.getElementById('sum_planLen').textContent=a.toFixed(1);
+  document.getElementById('sum_qty').textContent=b;
+}
+
+/* ============================================================
+   统一刷新入口（单向调度，渲染函数之间不互调）
+   ============================================================ */
+function refreshAll(){
+  renderIdentity();
+  renderTodo();
+  renderStats();
+  renderList();
+  if(document.getElementById('view-form').classList.contains('active'))renderAllDetailRows();
+}
+
+/* ============================================================
+   事件 / 交互
+   ============================================================ */
+let DB, _draft;
+function switchTab(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+  if(v==='form'){initDraft();renderAllDetailRows()}
+}
+function onIdentityChange(id){DB.currentUser=id;saveDB();_draft=null;refreshAll();toast('已切换身份：'+curUser().name)}
+function newRow(seq){return {seq,cableType:'GYTA',cableName:'',cores:'',designLen:'',planLen:'',qty:'',material:'无',planDate:todayStr(),handler:'',invStatus:'待回收',remark:''}}
+function initDraft(){
+  const u=curUser();
+  _draft={rows:[newRow(1),newRow(2)],county:u.county};
+  document.getElementById('f_workNo').value='';document.getElementById('f_phone').value='';
+  document.getElementById('f_projectName').value='';document.getElementById('f_projectNo').value='';
+  document.getElementById('f_cutoverName').value='';document.getElementById('f_planDate').value=todayStr();
+  document.getElementById('f_remark').value='';document.getElementById('dupHint').style.display='none';
+  document.getElementById('formTip').textContent='';
+}
+function addRow(){_draft.rows.push(newRow(_draft.rows.length+1));renderAllDetailRows()}
+function delRow(i){if(_draft.rows.length<=1){toast('至少保留一行');return}_draft.rows.splice(i,1);_draft.rows.forEach((r,j)=>r.seq=j+1);renderAllDetailRows()}
+function setCell(i,k,v){_draft.rows[i][k]=v}
+function onWorkNoInput(){
+  const v=document.getElementById('f_workNo').value.trim();const hint=document.getElementById('dupHint');
+  const dup=DB.orders.find(o=>o.workNo===v);
+  if(dup){hint.innerHTML='该工单号已存在（'+esc(dup.county)+' · '+esc(dup.projectName)+'）。如需再次提交，请到列表对该单发起「二次提交申请」，经市公司管理员审批通过后再报。';hint.style.display='block'}
+  else hint.style.display='none';
+}
+function onApplicantChange(name){
+  const w=(WHITELIST[curUser().county]||[]).find(x=>x.name===name);
+  document.getElementById('f_phone').value=w?w.phone:'';
+}
+function submitOrder(){
+  const u=curUser();
+  if(u.role!=='mgmt'){toast('仅区县迁改管理员可上报');return}
+  const workNo=document.getElementById('f_workNo').value.trim();
+  if(!workNo){toast('请填写割接工单号');return}
+  if(DB.orders.find(o=>o.workNo===workNo)){toast('工单号重复，请走二次提交申请');onWorkNoInput();return}
+  const applicant=document.getElementById('f_applicant').value;
+  if(!applicant){toast('请选择指定经办人');return}
+  if(!_draft.rows.some(r=>String(r.cableName||'').trim())){toast('请至少填写一条光缆名称');return}
+  openModal(`<h3>提交上报 · 短信验证</h3>
+    <div class="sms-tip" id="smsBox" style="display:none"></div>
+    <div class="row"><label>经办人手机号：<b>${esc(document.getElementById('f_phone').value)}</b></label>
+      <button class="btn-sm ghost" onclick="sendSMS()">获取验证码</button></div>
+    <div class="row"><label>输入验证码</label><input id="smsInput" inputmode="numeric" placeholder="6位验证码"></div>
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm" onclick="doSubmit()">确认提交</button></div>`);
+}
+function doSubmit(){
+  if(!verifySMS())return;
+  const workNo=document.getElementById('f_workNo').value.trim();
+  const o={id:uid(),workNo,county:curUser().county,
+    projectName:document.getElementById('f_projectName').value.trim(),projectNo:document.getElementById('f_projectNo').value.trim(),
+    cutoverName:document.getElementById('f_cutoverName').value.trim(),applicant:document.getElementById('f_applicant').value,
+    phone:document.getElementById('f_phone').value,planDate:document.getElementById('f_planDate').value,remark:document.getElementById('f_remark').value.trim(),
+    rows:JSON.parse(JSON.stringify(_draft.rows)),status:'reported',createdAt:new Date().toISOString(),
+    history:[{a:'上报',by:curUser().name,t:fmtTime(Date.now())}],dismantle:null,inbound:null,resubmit:null};
+  DB.orders.unshift(o);saveDB();closeModal();switchTab('list');refreshAll();toast('上报成功：'+workNo);
+}
+
+/* ---- 流转动作弹窗 ---- */
+function openAction(act,id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(act==='detail'){showDetail(o);return}
+  if(act==='confirmDismantle'){showDismantle(o);return}
+  if(act==='confirmInbound'){showInbound(o);return}
+  if(act==='approveResubmit'){showApprove(o);return}
+}
+function smsBlock(){
+  return `<div class="sms-tip" id="smsBox" style="display:none"></div>
+    <div class="row"><button class="btn-sm ghost" onclick="sendSMS()">获取短信验证码</button></div>
+    <div class="row"><label>输入验证码</label><input id="smsInput" inputmode="numeric" placeholder="6位验证码"></div>`;
+}
+function showDetail(o){
+  const tl=(o.history||[]).map(h=>`<div class="ev">${esc(h.a)} · ${esc(h.by)} · ${esc(h.t)}</div>`).join('');
+  const rows=o.rows.map(r=>`<tr><td>${r.seq}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td><td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td><td>${esc(r.material)}</td><td>${esc(r.invStatus)}</td></tr>`).join('');
+  openModal(`<h3>工单详情 · ${esc(o.workNo)}</h3>
+    <div class="kv"><div class="k">区县/工程</div><div>${esc(o.county)} · ${esc(o.projectName)}</div>
+      <div class="k">项目单号</div><div>${esc(o.projectNo||'-')}</div>
+      <div class="k">割接名称</div><div>${esc(o.cutoverName||'-')}</div>
+      <div class="k">经办人/手机</div><div>${esc(o.applicant)} · ${esc(o.phone)}</div>
+      <div class="k">状态</div><div><span class="badge ${statusCls(o.status)}">${statusLabel(o.status)}</span></div>
+      <div class="k">实际拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+'）':'未确认'}</div>
+      <div class="k">实际入库</div><div>${o.inbound?esc(o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
+      <div class="k">备注</div><div>${esc(o.remark||'-')}</div></div>
+    <div class="table-wrap"><table style="min-width:640px"><thead><tr><th>序</th><th>类型</th><th>光缆名称</th><th>芯数</th><th>计划(米)</th><th>数量</th><th>配套物料</th><th>盘点状态</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="timeline">${tl}</div>
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">关闭</button></div>`);
+}
+function showDismantle(o){
+  openModal(`<h3>确认拆回 · ${esc(o.workNo)}</h3>
+    <div class="muted" style="margin-bottom:10px">现场核实实际拆回的长度与盘/段数，确认后将自动推送给本区县维护管理员。</div>
+    <div class="row"><label>实际拆回长度(米)</label><input id="d_len" type="number" step="0.1" value="${sumField(o,'planLen')}"></div>
+    <div class="row"><label>实际拆回数量(盘/段)</label><input id="d_qty" type="number" value="${sumField(o,'qty')}"></div>
+    ${smsBlock()}
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm" onclick="doDismantle('${o.id}')">确认并推送</button></div>`);
+}
+function doDismantle(id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(!verifySMS())return;
+  o.dismantle={len:Number(document.getElementById('d_len').value)||0,qty:Number(document.getElementById('d_qty').value)||0,by:curUser().name,t:fmtTime(Date.now()),sms:true};
+  o.status='pushed';o.history.push({a:'确认拆回并推送给维护管理员',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('已确认拆回，并推送给 '+o.county+' 维护管理员');
+}
+function showInbound(o){
+  openModal(`<h3>确认入库 · ${esc(o.workNo)}</h3>
+    <div class="muted" style="margin-bottom:10px">拆回数量：${o.dismantle?esc(o.dismantle.qty):'-'} 盘段　请核对实际入库数量。</div>
+    <div class="row"><label>实际入库数量(盘/段)</label><input id="i_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
+    <div class="row"><label>差异说明（可选）</label><textarea id="i_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
+    ${smsBlock()}
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm ok" onclick="doInbound('${o.id}')">确认入库</button></div>`);
+}
+function doInbound(id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(!verifySMS())return;
+  o.inbound={qty:Number(document.getElementById('i_qty').value)||0,by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('i_note').value.trim()};
+  o.status='inbound';o.history.push({a:'确认入库，闭环',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('入库确认成功，工单闭环');
+}
+function showApprove(o){
+  const r=o.resubmit;
+  openModal(`<h3>审批二次提交申请 · ${esc(o.workNo)}</h3>
+    <div class="kv"><div class="k">申请区县</div><div>${esc(o.county)}</div>
+      <div class="k">申请人</div><div>${esc(r.applicant)} · ${esc(o.phone)}</div>
+      <div class="k">申请时间</div><div>${esc(r.t)}</div>
+      <div class="k">重报原因</div><div>${esc(r.reason)}</div></div>
+    ${smsBlock()}
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm danger" onclick="doApprove('${o.id}',false)">驳回</button>
+      <button class="btn-sm ok" onclick="doApprove('${o.id}',true)">批准重报</button></div>`);
+}
+function doApprove(id,ok){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(!verifySMS())return;
+  o.resubmit.approved=ok;o.resubmit.approver=curUser().name;o.resubmit.approveTime=fmtTime(Date.now());
+  o.history.push({a:ok?'审批通过二次提交':'驳回二次提交',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast(ok?'已批准重报：原工单号现可重新上报':'已驳回申请');
+}
+
+/* ---- 数据备份 ---- */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='传输线路二次循环平台_备份_'+todayStr()+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('备份已导出');
+}
+function importJSON(e){
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);if(!d.orders||!Array.isArray(d.orders))throw 0;
+    DB=d;saveDB();_draft=null;refreshAll();toast('导入成功，共 '+DB.orders.length+' 条')}catch(err){toast('文件格式不正确')}e.target.value=''};
+  rd.readAsText(f);
+}
+function clearAll(){
+  if(!confirm('⚠ 确认清空全部数据？此操作不可恢复，建议先导出备份。'))return;
+  if(!confirm('请再次确认：真的要清空全部工单数据吗？'))return;
+  DB={currentUser:DB.currentUser,orders:[]};saveDB();_draft=null;refreshAll();toast('已清空全部数据');
+}
+function clearSample(){
+  if(!confirm('清空示例数据？将删除内置的5条示例工单（不影响你自己新增的数据）。'))return;
+  const sampleNos=['GJ-2026-001','GJ-2026-002','GJ-2026-003','GJ-2026-004','GJ-2026-005'];
+  DB.orders=DB.orders.filter(o=>!sampleNos.includes(o.workNo));saveDB();refreshAll();toast('示例数据已清空');
+}
+
+/* ============================================================
+   初始化（固定顺序：加载数据 → 初始化状态 → 统一刷新）
+   ============================================================ */
+function init(){
+  DB=loadDB();
+  document.getElementById('f_applicant').addEventListener('change',e=>onApplicantChange(e.target.value));
+  refreshAll();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
