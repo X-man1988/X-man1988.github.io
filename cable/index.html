@@ -129,7 +129,7 @@ tr:nth-child(even) td{background:#fafbfd}
 .origin-block{background:#f7f9fc;border:1px dashed #b9c6d6;border-radius:10px;padding:12px;margin-bottom:14px}
 .origin-block .origin-title{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .origin-block .lock{font-size:11px;background:#eef2f7;color:var(--muted);padding:1px 7px;border-radius:10px;font-weight:600}
-.origin-block table{font-size:11px;min-width:1080px}
+.origin-block table{font-size:11px;min-width:1900px}
 .origin-block th{background:#7b93b0}
 .origin-block td,.origin-block th{padding:5px 6px}
 .stage-fields{border-top:2px solid var(--primary2);padding-top:12px;margin-top:6px}
@@ -256,11 +256,11 @@ tr:nth-child(even) td{background:#fafbfd}
         </div>
       </div>
       <div class="form-grid">
-        <div class="field"><label>割接工单号 *（唯一）</label><input id="f_workNo" placeholder="如 GJ-2026-001" oninput="onWorkNoInput()"></div>
+        <div class="field"><label>割接工单号 *（唯一）</label><input id="f_workNo" placeholder="如 GJ-2026-001" oninput="onWorkNoInput();syncRowMeta()"></div>
         <div class="field"><label>区县（自动带出）</label><input id="f_county" readonly></div>
-        <div class="field"><label>工程/项目名称</label><input id="f_projectName"></div>
-        <div class="field"><label>项目单号</label><input id="f_projectNo"></div>
-        <div class="field"><label>割接名称</label><input id="f_cutoverName"></div>
+        <div class="field"><label>工程/项目名称</label><input id="f_projectName" oninput="syncRowMeta()"></div>
+        <div class="field"><label>项目单号</label><input id="f_projectNo" oninput="syncRowMeta()"></div>
+        <div class="field"><label>割接名称</label><input id="f_cutoverName" oninput="syncRowMeta()"></div>
         <div class="field"><label>指定经办人（白名单）</label>
           <select id="f_applicant"><option value="">请选择</option></select>
         </div>
@@ -274,6 +274,11 @@ tr:nth-child(even) td{background:#fafbfd}
         <table class="detail-table">
           <thead><tr>
             <th style="min-width:42px">序号</th>
+            <th style="min-width:110px">割接工单号</th>
+            <th style="min-width:70px">区县</th>
+            <th style="min-width:140px">工程/项目名称</th>
+            <th style="min-width:110px">项目单号</th>
+            <th style="min-width:140px">割接名称</th>
             <th style="min-width:96px">光缆类型</th>
             <th style="min-width:120px">光缆名称</th>
             <th style="min-width:70px">芯数</th>
@@ -291,10 +296,10 @@ tr:nth-child(even) td{background:#fafbfd}
           </tr></thead>
           <tbody id="detailBody"></tbody>
           <tfoot><tr class="total-line">
-            <td colspan="5">合计</td>
+            <td colspan="10">合计</td>
             <td id="sum_planLen">0</td>
             <td id="sum_qty">0</td>
-            <td colspan="7"></td>
+            <td colspan="8"></td>
           </tr></tfoot>
         </table>
       </div>
@@ -315,7 +320,7 @@ tr:nth-child(even) td{background:#fafbfd}
         <div class="ev"><b>⑤ 区县维护管理员填写入库单</b>：填入库工单号，短信验证 → 闭环</div>
         <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
       </div>
-      <div class="hint show" style="margin-top:14px">数据不可变原则：上报时提交的整张表（全部字段+明细）原封不动推送到各环节，各环节只能看到只读快照、只填写本环节的确认字段（拆回量 / 入库量+入库工单号），任何环节都不能修改原始上报数据。所有历史留痕可追溯。</div>
+      <div class="hint show" style="margin-top:14px">字段统一原则：明细表与原 Excel 盘点表一比一——每条光缆行都带「割接工单号、区县、工程/项目名称、项目单号、割接名称」，任何一行都能直接看出从属项目，不依赖上方表头。<br><br>数据不可变原则：上报时提交的整张表原封不动推送到各环节，各环节只能看到只读快照、只填写本环节字段（拆回量 / 逐行入库量+入库工单号），不能修改原始上报数据，全程留痕。</div>
       <p class="muted" style="margin-top:12px">原型说明：短信验证码为模拟（点击获取后页面显示验证码）；数据存本地浏览器，换设备不同步；正式版将接资料库/服务器实现在线同步与真实短信。</p>
     </div>
   </div>
@@ -418,6 +423,13 @@ function seedDB(){
     ]
   };
 }
+// 把主表的项目归属字段下沉写入每条光缆明细行，保证每行都能看出从属项目
+function fillRowMeta(o){
+  (o.rows||[]).forEach(r=>{
+    r.rowWorkNo=o.workNo; r.rowCounty=o.county; r.rowProjectName=o.projectName;
+    r.rowProjectNo=o.projectNo; r.rowCutoverName=o.cutoverName;
+  });
+}
 function loadDB(){
   try{
     const raw=localStorage.getItem(KEY);
@@ -425,6 +437,7 @@ function loadDB(){
       const d=JSON.parse(raw);
       // 兼容迁移：光缆类型映射 + 入库字段从整单级下沉到每条光缆明细行
       (d.orders||[]).forEach(o=>{
+        fillRowMeta(o);
         (o.rows||[]).forEach(r=>{
           r.cableType=normCableType(r.cableType);
           if(r.inQty==null)r.inQty=(o.inbound&&o.inbound.confirmQty!=null)?o.inbound.confirmQty:(o.qtyCheck?o.qtyCheck.qty:null);
@@ -575,8 +588,15 @@ function renderAllDetailRows(){
 }
 function rowHTML(r,i){
   const opt=(arr,v)=>arr.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
+  const fv=id=>{const e=document.getElementById(id);return e?e.value:''};
+  const metaStyle='background:#f7f9fc;font-size:11px';
   return `<tr>
     <td>${i+1}</td>
+    <td style="${metaStyle}">${esc(fv('f_workNo'))}</td>
+    <td style="${metaStyle}">${esc(fv('f_county'))}</td>
+    <td style="${metaStyle}">${esc(fv('f_projectName'))}</td>
+    <td style="${metaStyle}">${esc(fv('f_projectNo'))}</td>
+    <td style="${metaStyle}">${esc(fv('f_cutoverName'))}</td>
     <td><select onchange="setCell(${i},'cableType',this.value)">${opt(CABLE_TYPES,r.cableType)}</select></td>
     <td><input value="${esc(r.cableName)}" oninput="setCell(${i},'cableName',this.value)"></td>
     <td><input type="number" value="${esc(r.cores)}" oninput="setCell(${i},'cores',this.value)"></td>
@@ -597,6 +617,14 @@ function recalcTotal(){
   let a=0,b=0;_draft.rows.forEach(r=>{a+=Number(r.planLen)||0;b+=Number(r.qty)||0});
   document.getElementById('sum_planLen').textContent=a.toFixed(1);
   document.getElementById('sum_qty').textContent=b;
+}
+// 主表项目字段变化时，只更新明细行的元数据单元格（不重绘整表，避免输入框失焦）
+function syncRowMeta(){
+  const fv=id=>{const e=document.getElementById(id);return e?e.value:''};
+  const vals=[fv('f_workNo'),fv('f_county'),fv('f_projectName'),fv('f_projectNo'),fv('f_cutoverName')];
+  document.querySelectorAll('#detailBody tr').forEach(tr=>{
+    for(let c=0;c<5;c++){const td=tr.children[c+1];if(td)td.textContent=vals[c]}
+  });
 }
 
 /* ============================================================
@@ -723,6 +751,7 @@ function doSubmit(){
     phone:document.getElementById('f_phone').value,planDate:document.getElementById('f_planDate').value,remark:document.getElementById('f_remark').value.trim(),
     rows:JSON.parse(JSON.stringify(_draft.rows)),status:'reported',createdAt:new Date().toISOString(),
     history:[{a:'上报',by:curUser().name,t:fmtTime(Date.now())}],dismantle:null,inbound:null,resubmit:null};
+  fillRowMeta(o);
   DB.orders.unshift(o);saveDB();closeModal();switchTab('list');refreshAll();toast('上报成功：'+workNo);
 }
 
@@ -743,7 +772,11 @@ function smsBlock(){
 // 原始上报内容只读快照（完整字段+明细），各流转环节共用，任何人不可修改
 function renderOriginalBlock(o){
   const rows=(o.rows||[]).map(r=>`<tr>
-    <td>${r.seq}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
+    <td>${r.seq}</td>
+    <td>${esc(r.rowWorkNo||o.workNo)}</td><td>${esc(r.rowCounty||o.county)}</td>
+    <td class="left">${esc(r.rowProjectName||o.projectName||'-')}</td>
+    <td>${esc(r.rowProjectNo||o.projectNo||'-')}</td><td class="left">${esc(r.rowCutoverName||o.cutoverName||'-')}</td>
+    <td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
     <td>${esc(r.designLen)}</td><td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td>
     <td>${esc(r.material)}</td><td>${esc(r.planDate)}</td><td>${esc(r.handler)}</td><td>${esc(r.invStatus)}</td><td class="left">${esc(r.remark)}</td>
     <td>${r.inQty!=null?esc(r.inQty):'-'}</td><td>${esc(r.inNo||'-')}</td>
@@ -760,7 +793,8 @@ function renderOriginalBlock(o){
       <div class="k">备注</div><div>${esc(o.remark||'-')}</div>
     </div>
     <div class="table-wrap"><table><thead><tr>
-      <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>设计回收(米)</th><th>计划回收(米)</th>
+      <th>序号</th><th>割接工单号</th><th>区县</th><th>工程/项目名称</th><th>项目单号</th><th>割接名称</th>
+      <th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>设计回收(米)</th><th>计划回收(米)</th>
       <th>回收数量</th><th>配套物料</th><th>计划完成日期</th><th>经办班组/人</th><th>盘点状态</th><th>备注</th>
       <th>入库量确认（传输线路维护管理员）</th><th>入库工单号</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
