@@ -63,6 +63,7 @@ body{
 .badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
 .b-reported{background:var(--warn-soft);color:var(--warn)}
 .b-pushed{background:var(--primary-soft);color:var(--info)}
+.b-qtyconf{background:#e8f4f8;color:#0b7285}
 .b-inbound{background:var(--ok-soft);color:var(--ok)}
 .b-resubmit{background:#f3e8ff;color:#7b2cbf}
 .b-overdue{background:var(--danger);color:#fff}
@@ -308,7 +309,8 @@ tr:nth-child(even) td{background:#fafbfd}
         <div class="ev"><b>① 区县迁改管理员上报</b>：按区县、指定人+手机号验证、工单号唯一校验 → 提交整张盘点表</div>
         <div class="ev"><b>② 区县迁改管理员确认拆回</b>：现场核实拆回长度/数量，短信验证</div>
         <div class="ev"><b>③ 系统自动推送</b>：把拆回信息推送给本区县传输线路维护管理员（站内待办）</div>
-        <div class="ev"><b>④ 区县维护管理员确认入库</b>：填写入库量确认与入库工单号，短信验证 → 闭环</div>
+        <div class="ev"><b>④ 区县维护管理员确认数量</b>：核对实际入库数量，短信验证 → 待填入库单</div>
+        <div class="ev"><b>⑤ 区县维护管理员填写入库单</b>：填入库工单号，短信验证 → 闭环</div>
         <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
       </div>
       <div class="hint show" style="margin-top:14px">数据不可变原则：上报时提交的整张表（全部字段+明细）原封不动推送到各环节，各环节只能看到只读快照、只填写本环节的确认字段（拆回量 / 入库量+入库工单号），任何环节都不能修改原始上报数据。所有历史留痕可追溯。</div>
@@ -398,14 +400,19 @@ function seedDB(){
       {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(5),remark:'',
        rows:[mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5))],
        status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'鲍军',t:fmtTime(Date.now()-4*864e5)}],
-       dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,confirmQty:1,inNo:'RK-2026-003',by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
+       dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},qtyCheck:{qty:1,by:'鲍军',t:fmtTime(Date.now()-5*864e5),sms:true,note:'数量一致'},inbound:{qty:1,confirmQty:1,inNo:'RK-2026-003',by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true},resubmit:null},
       {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'徐晓栋',phone:'13967868651',planDate:todayStr(),remark:'',
        rows:[mkRow(1,'GYTS','海曙-本地-09',48,1800,1780,2,'接头盒/钢绞线',todayStr())],
        status:'reported',createdAt:new Date(Date.now()-1*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-1*864e5)}],dismantle:null,inbound:null,resubmit:null},
       {id:uid(),workNo:'GJ-2026-005',county:'鄞州区',projectName:'鄞州(重报示例)',projectNo:'XM-2026-013',cutoverName:'下应割接',applicant:'李宁建',phone:'13605745308',planDate:todayStr(),remark:'工单号填错待重报',
        rows:[mkRow(1,'其他','鄞州-其他-02',12,600,590,1,'无',todayStr())],
        status:'reported',createdAt:new Date(Date.now()-2*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-2*864e5)}],dismantle:null,inbound:null,
-       resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'李宁建',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}}
+       resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'李宁建',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}},
+      {id:uid(),workNo:'GJ-2026-006',county:'海曙区',projectName:'海曙接入层拆旧',projectNo:'XM-2026-014',cutoverName:'望春割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(1),remark:'数量已确认待填单',
+       rows:[mkRow(1,'GYTS','海曙-接入-11',24,1200,1180,2,'接头盒/标牌',daysAgo(1))],
+       status:'qty_checked',createdAt:new Date(Date.now()-3*864e5).toISOString(),
+       history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'徐晓栋',t:fmtTime(Date.now()-2*864e5)},{a:'确认数量 2 盘段',by:'鲍军',t:fmtTime(Date.now()-1*864e5)}],
+       dismantle:{len:1170,qty:2,by:'徐晓栋',t:fmtTime(Date.now()-2*864e5),sms:true},qtyCheck:{qty:2,by:'鲍军',t:fmtTime(Date.now()-1*864e5),sms:true,note:''},inbound:null,resubmit:null}
     ]
   };
 }
@@ -436,18 +443,19 @@ function visibleOrders(){
 }
 function isOverdue(o){
   // 逾期只针对"已上报但未确认拆回"的环节；拆回完成/入库后不再计逾期
-  if(o.status==='inbound'||o.status==='pushed')return false;
+  if(o.status==='inbound'||o.status==='pushed'||o.status==='qty_checked')return false;
   const d=o.planDate?new Date(o.planDate+'T23:59:59').getTime():0;
   return d&&Date.now()>d;
 }
-function statusLabel(s){return {reported:'已上报·待确认拆回',pushed:'已确认拆回·待确认入库',inbound:'已入库·闭环'}[s]||s}
-function statusCls(s){return {reported:'b-reported',pushed:'b-pushed',inbound:'b-inbound'}[s]||''}
+function statusLabel(s){return {reported:'已上报·待确认拆回',pushed:'已确认拆回·待确认数量',qty_checked:'数量已确认·待填写入库单',inbound:'已入库·闭环'}[s]||s}
+function statusCls(s){return {reported:'b-reported',pushed:'b-pushed',qty_checked:'b-qtyconf',inbound:'b-inbound'}[s]||''}
 function sumField(o,field){return o.rows.reduce((a,r)=>a+(Number(r[field])||0),0)}
 function getTodo(){
   const u=curUser();const list=visibleOrders();const out=[];
   list.forEach(o=>{
     if(hasRole(u,'mgmt')&&o.status==='reported')out.push({o,act:'confirmDismantle',label:'确认拆回'});
-    if(hasRole(u,'maint')&&o.status==='pushed')out.push({o,act:'confirmInbound',label:'确认入库'});
+    if(hasRole(u,'maint')&&o.status==='pushed')out.push({o,act:'confirmQty',label:'确认数量'});
+    if(hasRole(u,'maint')&&o.status==='qty_checked')out.push({o,act:'fillInboundNo',label:'填写入库单'});
     if(hasRole(u,'city')&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)out.push({o,act:'approveResubmit',label:'审批二次提交'});
   });
   out.sort((a,b)=>(isOverdue(b.o)-isOverdue(a.o))||(a.o.planDate||'').localeCompare(b.o.planDate||''));
@@ -456,6 +464,7 @@ function getTodo(){
 function calcStats(){
   const l=visibleOrders();
   return {total:l.length,reported:l.filter(o=>o.status==='reported').length,pushed:l.filter(o=>o.status==='pushed').length,
+    qtyChecked:l.filter(o=>o.status==='qty_checked').length,
     inbound:l.filter(o=>o.status==='inbound').length,overdue:l.filter(isOverdue).length,
     reapprove:l.filter(o=>o.resubmit&&o.resubmit.need&&o.resubmit.approved===null).length,
     len:l.reduce((a,o)=>a+sumField(o,'planLen'),0)};
@@ -522,9 +531,9 @@ function renderStats(){
   const s=calcStats();
   const cell=(n,l,c='')=>`<div class="stat ${c}"><div class="num">${n}</div><div class="lbl">${l}</div></div>`;
   document.getElementById('statsBox').innerHTML=
-    cell(s.total,'可见工单总数')+cell(s.reported,'待确认拆回','warn')+cell(s.pushed,'待确认入库')+
-    cell(s.inbound,'已入库闭环','ok')+cell(s.overdue,'逾期','danger')+cell(s.len.toLocaleString(),'计划回收合计(米)')+
-    cell(getTodo().length,'我的待办')+cell(s.reapprove,'待审批重报','warn');
+    cell(s.total,'可见工单总数')+cell(s.reported,'待确认拆回','warn')+cell(s.pushed,'待确认数量')+
+    cell(s.qtyChecked,'待填入库单')+cell(s.inbound,'已入库闭环','ok')+cell(s.overdue,'逾期','danger')+
+    cell(s.len.toLocaleString(),'计划回收合计(米)')+cell(getTodo().length,'我的待办')+cell(s.reapprove,'待审批重报','warn');
 }
 
 function renderList(){
@@ -535,7 +544,8 @@ function renderList(){
     const ops=[];
     ops.push(`<button class="btn-sm ghost" onclick="openAction('detail','${o.id}')">详情</button>`);
     if(hasRole(u,'mgmt')&&o.status==='reported')ops.push(`<button class="btn-sm" onclick="openAction('confirmDismantle','${o.id}')">确认拆回</button>`);
-    if(hasRole(u,'maint')&&o.status==='pushed')ops.push(`<button class="btn-sm ok" onclick="openAction('confirmInbound','${o.id}')">确认入库</button>`);
+    if(hasRole(u,'maint')&&o.status==='pushed')ops.push(`<button class="btn-sm ok" onclick="openAction('confirmQty','${o.id}')">确认数量</button>`);
+    if(hasRole(u,'maint')&&o.status==='qty_checked')ops.push(`<button class="btn-sm ok" onclick="openAction('fillInboundNo','${o.id}')">填写入库单</button>`);
     if(hasRole(u,'city')&&o.resubmit&&o.resubmit.need&&o.resubmit.approved===null)ops.push(`<button class="btn-sm" onclick="openAction('approveResubmit','${o.id}')">审批</button>`);
     return `<tr>
       <td>${esc(o.workNo)}</td><td>${esc(o.county)}</td><td class="left">${esc(o.projectName)}</td>
@@ -711,7 +721,8 @@ function openAction(act,id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
   if(act==='detail'){showDetail(o);return}
   if(act==='confirmDismantle'){showDismantle(o);return}
-  if(act==='confirmInbound'){showInbound(o);return}
+  if(act==='confirmQty'){showQtyConfirm(o);return}
+  if(act==='fillInboundNo'){showInboundNo(o);return}
   if(act==='approveResubmit'){showApprove(o);return}
 }
 function smsBlock(){
@@ -750,8 +761,8 @@ function showDetail(o){
     <div class="stage-fields"><div class="stage-title">各环节确认记录（仅本环节填写）</div>
     <div class="kv">
       <div class="k">① 确认拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+' · '+esc(o.dismantle.t)+'）':'未确认'}</div>
-      <div class="k">② 入库量确认</div><div>${o.inbound?esc(o.inbound.confirmQty!=null?o.inbound.confirmQty:o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
-      <div class="k">③ 入库工单号</div><div>${o.inbound?esc(o.inbound.inNo||'-'):'未确认'}</div>
+      <div class="k">② 确认数量</div><div>${o.qtyCheck?esc(o.qtyCheck.qty)+'盘段（'+esc(o.qtyCheck.by)+' · '+esc(o.qtyCheck.t)+'）':'未确认'}</div>
+      <div class="k">③ 入库单</div><div>${o.inbound?esc(o.inbound.inNo||'-')+'（'+esc(o.inbound.by)+' · '+esc(o.inbound.t)+'）':'未确认'}</div>
     </div></div>
     <div class="timeline">${tl}</div>
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">关闭</button></div>`);
@@ -774,27 +785,51 @@ function doDismantle(id){
   o.status='pushed';o.history.push({a:'确认拆回并推送给维护管理员',by:curUser().name,t:fmtTime(Date.now())});
   saveDB();closeModal();refreshAll();toast('已确认拆回，并推送给 '+o.county+' 维护管理员');
 }
-function showInbound(o){
-  openModal(`<h3>确认入库 · ${esc(o.workNo)}</h3>
+// 入库第一步：确认数量
+function showQtyConfirm(o){
+  openModal(`<h3>确认数量 · ${esc(o.workNo)}</h3>
     ${renderOriginalBlock(o)}
-    <div class="stage-fields"><div class="stage-title">本环节：确认入库（仅填写本环节字段）</div>
-    <div class="muted" style="margin-bottom:10px">上游拆回确认：${o.dismantle?esc(o.dismantle.qty)+' 盘段（'+esc(o.dismantle.by)+'）':'无'}。上方原始上报内容不可修改。</div>
-    <div class="row"><label>入库量确认(盘/段) *</label><input id="i_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
-    <div class="row"><label>入库工单号 *</label><input id="i_inNo" placeholder="如 RK-2026-001（仓库入库单号）"></div>
-    <div class="row"><label>差异说明（可选）</label><textarea id="i_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
+    <div class="stage-fields"><div class="stage-title">步骤① 确认数量（仅填写本步骤字段）</div>
+    <div class="muted" style="margin-bottom:10px">上游拆回确认：${o.dismantle?esc(o.dismantle.qty)+' 盘段（'+esc(o.dismantle.by)+'）':'无'}。核对后确认实际入库数量，下一步再填写入库单。</div>
+    <div class="row"><label>入库量确认(盘/段) *</label><input id="qc_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
+    <div class="row"><label>差异说明（可选）</label><textarea id="qc_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
     ${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
-      <button class="btn-sm ok" onclick="doInbound('${o.id}')">确认入库</button></div></div>`);
+      <button class="btn-sm" onclick="doQtyConfirm('${o.id}')">确认数量</button></div></div>`);
 }
-function doInbound(id){
+function doQtyConfirm(id){
+  const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  if(!verifySMS())return;
+  const qty=Number(document.getElementById('qc_qty').value)||0;
+  o.qtyCheck={qty, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('qc_note').value.trim()};
+  o.status='qty_checked';
+  o.history.push({a:'确认数量 '+qty+' 盘段',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('数量已确认，下一步请填写入库单');
+}
+// 入库第二步：填写入库单
+function showInboundNo(o){
+  openModal(`<h3>填写入库单 · ${esc(o.workNo)}</h3>
+    ${renderOriginalBlock(o)}
+    <div class="stage-fields"><div class="stage-title">步骤② 填写入库单（仅填写本步骤字段）</div>
+    <div class="kv" style="margin-bottom:10px">
+      <div class="k">已确认数量</div><div>${o.qtyCheck?esc(o.qtyCheck.qty)+' 盘段（'+esc(o.qtyCheck.by)+' · '+esc(o.qtyCheck.t)+'）':'未确认'}</div>
+    </div>
+    <div class="row"><label>入库工单号 *</label><input id="i_inNo" placeholder="如 RK-2026-001（仓库入库单号）"></div>
+    ${smsBlock()}
+    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm ok" onclick="doInboundNo('${o.id}')">确认入库单</button></div></div>`);
+}
+function doInboundNo(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
   const inNo=document.getElementById('i_inNo').value.trim();
   if(!inNo){toast('请填写入库工单号');return}
   if(!verifySMS())return;
-  const qty=Number(document.getElementById('i_qty').value)||0;
-  o.inbound={qty, confirmQty:qty, inNo, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('i_note').value.trim()};
-  o.status='inbound';o.history.push({a:'确认入库，入库工单号 '+inNo,by:curUser().name,t:fmtTime(Date.now())});
-  saveDB();closeModal();refreshAll();toast('入库确认成功，工单闭环');
+  // 兼容字段：qty/confirmQty 取已确认数量，供旧统计口径使用
+  const qty=o.qtyCheck?o.qtyCheck.qty:0;
+  o.inbound={qty, confirmQty:qty, inNo, by:curUser().name,t:fmtTime(Date.now()),sms:true};
+  o.status='inbound';
+  o.history.push({a:'填写入库单 '+inNo+'，闭环',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('入库单已登记，工单闭环');
 }
 function showApprove(o){
   const r=o.resubmit;
@@ -835,7 +870,7 @@ function clearAll(){
 }
 function clearSample(){
   if(!confirm('清空示例数据？将删除内置的5条示例工单（不影响你自己新增的数据）。'))return;
-  const sampleNos=['GJ-2026-001','GJ-2026-002','GJ-2026-003','GJ-2026-004','GJ-2026-005'];
+  const sampleNos=['GJ-2026-001','GJ-2026-002','GJ-2026-003','GJ-2026-004','GJ-2026-005','GJ-2026-006'];
   DB.orders=DB.orders.filter(o=>!sampleNos.includes(o.workNo));saveDB();refreshAll();toast('示例数据已清空');
 }
 
