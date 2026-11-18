@@ -227,7 +227,8 @@ tr:nth-child(even) td{background:#fafbfd}
         <button class="btn" style="margin-left:4px" onclick="logout()">退出登录</button>
       </div>
       <div class="toolbtns">
-        <button class="btn solid" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
+        <button class="btn solid" onclick="exportCSV(true)"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出Excel</button>
+        <button class="btn" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
         <button class="btn" onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 5h14"/></svg>导入恢复</button>
         <button class="btn" onclick="clearSample()">清空示例</button>
         <button class="btn" onclick="clearAll()">清空全部</button>
@@ -274,6 +275,7 @@ tr:nth-child(even) td{background:#fafbfd}
         </div>
         <div class="query-foot">
           <button class="btn-sm ghost" onclick="resetQuery()">重置查询</button>
+          <button class="btn-sm ok" onclick="exportCSV()">导出查询结果</button>
           <span class="muted" id="queryResultNote"></span>
         </div>
       </div>
@@ -1028,6 +1030,41 @@ function exportJSON(){
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='传输线路二次循环平台_备份_'+todayStr()+'.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('备份已导出');
+}
+// 导出当前查询结果为 CSV（Excel 可直接打开），按光缆维度逐行，字段对齐原表+各环节确认
+function csvCell(v){
+  const s=String(v==null?'':v);
+  return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function exportCSV(all){
+  const list=all?visibleOrders():filterOrders();
+  if(!list.length){toast(all?'当前无可见数据可导出':'当前查询无结果，无可导出数据');return}
+  const head=['序号','割接工单号','区县','工程/项目名称','项目单号','割接名称',
+    '光缆类型','光缆名称','芯数','设计回收(米)','计划回收长度(米)','回收数量(盘/段)',
+    '配套回收物料','计划回收完成日期','经办班组/人','盘点状态','备注',
+    '入库量确认(传输线路维护管理员)','入库工单号','工单状态','上报人','上报时间',
+    '确认拆回长度(米)','确认拆回数量','入库确认数量','入库工单号(整单)','闭环时间'];
+  const lines=[head.join(',')];
+  list.forEach(o=>{
+    (o.rows||[]).forEach(r=>{
+      lines.push([
+        r.seq, r.rowWorkNo||o.workNo, r.rowCounty||o.county, r.rowProjectName||o.projectName,
+        r.rowProjectNo||o.projectNo, r.rowCutoverName||o.cutoverName,
+        r.cableType, r.cableName, r.cores, r.designLen, r.planLen, r.qty,
+        r.material, r.planDate, r.handler, r.invStatus, r.remark,
+        (r.inQty!=null?r.inQty:''), r.inNo||'', statusLabel(o.status), o.applicant, fmtTime(o.createdAt),
+        (o.dismantle?o.dismantle.len:''),(o.dismantle?o.dismantle.qty:''),
+        (o.inbound?(o.inbound.confirmQty!=null?o.inbound.confirmQty:o.inbound.qty):''),
+        (o.inbound?o.inbound.inNo:''),(o.inbound?o.inbound.t:'')
+      ].map(csvCell).join(','));
+    });
+  });
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='传输线路二次循环_盘点明细_'+(all?'全部_':'查询结果_')+todayStr()+'.csv';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const rows=list.reduce((s,o)=>s+(o.rows||[]).length,0);
+  toast('已导出 '+list.length+' 张工单 / '+rows+' 条光缆明细');
 }
 function importJSON(e){
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
