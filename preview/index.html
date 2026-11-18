@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>传输线路维护确认 · 整合模板</title>
+<style>
+:root{--primary:#1f4e79;--primary2:#4472c4;--soft:#eaf1fb;--ok:#1a7f37;--oksoft:#e7f5ec;--line:#e3e8ef;--text:#1f2733;--muted:#6b7787;--warn:#b26a00;--warnsoft:#fff3e0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:#f4f6f9;color:var(--text);font-size:14px;line-height:1.55;padding-bottom:30px}
+.wrap{max-width:1080px;margin:0 auto;padding:18px}
+.demo-tip{background:#fff8e1;border:1px solid #ffe082;color:#8a5a00;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 10px rgba(31,78,121,.07);padding:20px;margin-bottom:16px}
+.hd{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.hd h1{font-size:19px;margin:0;color:var(--primary)}
+.badge{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:700}
+.b-warn{background:var(--warnsoft);color:var(--warn)} .b-ok{background:var(--oksoft);color:var(--ok)} .b-info{background:var(--soft);color:var(--primary2)}
+/* 工单详情 */
+.detail{background:#f7f9fc;border:1px dashed #b9c6d6;border-radius:10px;padding:14px}
+.detail .lbl{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:13px}
+.kv .k{color:var(--muted)} .kv .v{word-break:break-all}
+/* 步骤条 */
+.steps{display:flex;align-items:center;gap:0;margin:18px 0}
+.step{display:flex;align-items:center;gap:8px;flex:1}
+.step .no{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:#e3e8ef;color:#8a97a8;flex:none}
+.step .txt{font-size:13px;color:var(--muted);font-weight:600}
+.step.active .no{background:var(--primary2);color:#fff} .step.active .txt{color:var(--primary)}
+.step.done .no{background:var(--ok);color:#fff} .step.done .txt{color:var(--ok)}
+.step-line{height:2px;background:#e3e8ef;flex:1;margin:0 8px;min-width:20px}
+.step-line.done{background:var(--ok)}
+/* 明细表 */
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:900px}
+th,td{border:1px solid var(--line);padding:9px 8px;text-align:center;vertical-align:middle}
+th{background:var(--primary2);color:#fff;font-weight:600}
+td.left{text-align:left}
+tr:nth-child(even) td{background:#fafbfd}
+.step2-disabled{background:#f2f4f7;color:#aab3bf}
+input[type=number],input[type=text]{font-size:15px;padding:7px 8px;border:1px solid var(--line);border-radius:7px;width:110px;min-height:38px}
+input:focus{outline:2px solid var(--primary2);border-color:var(--primary2)}
+.inNoInp{width:140px}
+.row-sum{background:var(--soft);font-weight:700;color:var(--primary)}
+/* 底部操作 */
+.foot-area{margin-top:16px;border-top:2px solid var(--primary2);padding-top:14px}
+.foot-area .lbl{font-size:13px;font-weight:700;color:var(--primary2);margin-bottom:10px}
+textarea{width:100%;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:8px;min-height:64px;resize:vertical}
+.sms-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.sms-tip{display:none;background:#fff8e1;border:1px solid #ffe082;color:#8a5a00;padding:8px 12px;border-radius:8px;font-size:13px;width:100%}
+.btn{min-height:42px;padding:0 18px;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-ghost{background:#fff;color:var(--primary2);border:1px solid var(--primary2)}
+.btn-main{background:var(--primary);color:#fff}
+.btn-ok{background:var(--ok);color:#fff}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#263444;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+#toast.show{opacity:1}
+@media(max-width:768px){.wrap{padding:10px}.card{padding:14px}.kv{grid-template-columns:88px 1fr}.hd h1{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="demo-tip"><b>整合模板预览</b>：把「工单详情 + 确认数量 + 填写入库单」合并成一个界面，维护管理员不用再在多个弹窗间切换。下面是可点击的交互演示（步骤①→步骤②）。</div>
+
+  <div class="card">
+    <div class="hd">
+      <h1>传输线路维护确认 · ZJ-GLGI-20261117-00020</h1>
+      <span class="badge b-warn" id="statusBadge">已确认拆回 · 待确认数量</span>
+    </div>
+
+    <!-- 工单详情（只读，始终可见） -->
+    <div class="detail">
+      <div class="lbl">工单详情（只读 · 不可修改）</div>
+      <div class="kv">
+        <div class="k">割接工单号</div><div class="v">ZJ-GLGI-20261117-00020</div>
+        <div class="k">区县/工程</div><div class="v">象山县 · 象山县丹河路（沿区路-白鹤路）排水管网更新移动管线有偿迁改工程（第二次迁改）白鹤路-园中路段（需数资修改）（TZI）</div>
+        <div class="k">项目单号</div><div class="v">ZJ-701-20260629-00066</div>
+        <div class="k">割接名称</div><div class="v">关于2026年11月20日凌晨象山县丹河路（白鹤路—沿区路）段及白鹤路（丹河路—象山河路）段排水管网更新工程光缆二次回迁割接的申请C3（有偿迁改）</div>
+        <div class="k">经办人/手机</div><div class="v">毛松志 · 13780071399</div>
+        <div class="k">计划完成日期</div><div class="v">2026-11-20</div>
+      </div>
+    </div>
+
+    <!-- 步骤条 -->
+    <div class="steps">
+      <div class="step active" id="step1"><div class="no">1</div><div class="txt">确认数量</div></div>
+      <div class="step-line" id="stepLine"></div>
+      <div class="step" id="step2"><div class="no">2</div><div class="txt">填写入库单</div></div>
+    </div>
+
+    <!-- 明细表：数量列 + 入库单列同时呈现，分步激活 -->
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>序号</th><th>光缆名称</th><th>芯数</th><th>计划回收(米)</th>
+          <th>入库量确认（传输线路维护管理员）</th><th>入库工单号</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td><td class="left">象山县XS东陈汇聚-宁波市XS河家漾汇聚48芯光缆</td><td>48</td><td>1000</td>
+            <td><input type="number" id="q0" value="" placeholder="填数量"></td>
+            <td id="cell0"><input type="text" class="inNoInp" id="n0" value="" placeholder="第①步后填写" disabled></td>
+          </tr>
+          <tr>
+            <td>2</td><td class="left">象山县XS丹河家漾-宁波市XS东陈汇聚96芯光缆</td><td>96</td><td>1000</td>
+            <td><input type="number" id="q1" value="" placeholder="填数量"></td>
+            <td id="cell1"><input type="text" class="inNoInp" id="n1" value="" placeholder="第①步后填写" disabled></td>
+          </tr>
+          <tr>
+            <td>3</td><td class="left">象山县XS东陈汇聚-宁波市XS丹河家漾24芯光缆</td><td>24</td><td>1000</td>
+            <td><input type="number" id="q2" value="" placeholder="填数量"></td>
+            <td id="cell2"><input type="text" class="inNoInp" id="n2" value="" placeholder="第①步后填写" disabled></td>
+          </tr>
+          <tr class="row-sum"><td colspan="4">合计（入库量）</td><td id="sumQty">0</td><td id="sumNo">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 底部操作区：差异说明 + 短信 + 按钮 -->
+    <div class="foot-area">
+      <div class="lbl" id="footLbl">步骤① 确认数量</div>
+      <textarea id="note" placeholder="差异说明（可选）：如与回收数量不一致，请说明原因"></textarea>
+      <div class="sms-row">
+        <button class="btn btn-ghost" onclick="sendSMS()">获取短信验证码</button>
+        <div class="sms-tip" id="smsTip"></div>
+        <input type="text" id="smsCode" placeholder="6位验证码" style="width:130px">
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" id="btnBack" style="display:none" onclick="backStep()">上一步</button>
+        <button class="btn btn-main" id="btnNext" onclick="nextStep()">确认数量 →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+<script>
+let step=1, code='';
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+function sendSMS(){code=String(Math.floor(100000+Math.random()*900000));const tip=document.getElementById('smsTip');tip.style.display='block';tip.innerHTML='<b>短信验证码（原型模拟）：'+code+'</b>'}
+function calcSum(){let s=0;for(let i=0;i<3;i++)s+=Number(document.getElementById('q'+i).value)||0;document.getElementById('sumQty').textContent=s}
+for(let i=0;i<3;i++)document.getElementById('q'+i).addEventListener('input',calcSum);
+function verify(){if(!code){toast('请先获取验证码');return false}if(document.getElementById('smsCode').value.trim()!==code){toast('验证码错误');return false}return true}
+function nextStep(){
+  if(step===1){
+    const vals=[0,1,2].map(i=>document.getElementById('q'+i).value.trim());
+    if(vals.some(v=>v==='')){toast('请为每条光缆填写入库量确认');return}
+    if(!verify())return;
+    step=2;
+    document.getElementById('step1').className='step done';
+    document.getElementById('step2').className='step active';
+    document.getElementById('stepLine').className='step-line done';
+    document.getElementById('statusBadge').className='badge b-info';
+    document.getElementById('statusBadge').textContent='数量已确认 · 待填写入库单';
+    document.getElementById('footLbl').textContent='步骤② 填写入库单';
+    for(let i=0;i<3;i++){
+      document.getElementById('q'+i).readOnly=true;
+      document.getElementById('q'+i).style.background='#f2f4f7';
+      const n=document.getElementById('n'+i);n.disabled=false;n.placeholder='如 RK-2026-001';
+      document.getElementById('cell'+i).className='';
+    }
+    document.getElementById('btnBack').style.display='';
+    document.getElementById('btnNext').textContent='确认入库单 ✓';
+    document.getElementById('btnNext').className='btn btn-ok';
+    document.getElementById('note').placeholder='入库备注（可选）';
+    calcSum();
+    toast('数量已确认，请填写入库工单号');
+  }else{
+    const nos=[0,1,2].map(i=>document.getElementById('n'+i).value.trim());
+    if(nos.some(v=>v==='')){toast('请为每条光缆填写入库工单号');return}
+    if(!verify())return;
+    document.getElementById('sumNo').textContent=[...new Set(nos)].join('/');
+    document.getElementById('statusBadge').className='badge b-ok';
+    document.getElementById('statusBadge').textContent='已入库 · 闭环';
+    document.getElementById('btnNext').textContent='已完成 ✓';
+    document.getElementById('btnNext').disabled=true;
+    toast('入库单已登记，工单闭环');
+  }
+}
+function backStep(){
+  if(step!==2)return;step=1;
+  document.getElementById('step1').className='step active';
+  document.getElementById('step2').className='step';
+  document.getElementById('stepLine').className='step-line';
+  document.getElementById('statusBadge').className='badge b-warn';
+  document.getElementById('statusBadge').textContent='已确认拆回 · 待确认数量';
+  document.getElementById('footLbl').textContent='步骤① 确认数量';
+  for(let i=0;i<3;i++){
+    document.getElementById('q'+i).readOnly=false;
+    document.getElementById('q'+i).style.background='';
+    const n=document.getElementById('n'+i);n.disabled=true;n.value='';n.placeholder='第①步后填写';
+    document.getElementById('cell'+i).className='step2-disabled';
+  }
+  document.getElementById('btnBack').style.display='none';
+  document.getElementById('btnNext').textContent='确认数量 →';
+  document.getElementById('btnNext').className='btn btn-main';
+  document.getElementById('btnNext').disabled=false;
+  document.getElementById('sumNo').textContent='—';
+}
+</script>
+</body>
+</html>
