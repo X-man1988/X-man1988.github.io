@@ -299,7 +299,7 @@ tr:nth-child(even) td{background:#fafbfd}
         <div class="ev"><b>① 区县迁改管理员上报</b>：按区县、指定人+手机号验证、工单号唯一校验 → 提交整张盘点表</div>
         <div class="ev"><b>② 区县迁改管理员确认拆回</b>：现场核实拆回长度/数量，短信验证</div>
         <div class="ev"><b>③ 系统自动推送</b>：把拆回信息推送给本区县传输线路维护管理员（站内待办）</div>
-        <div class="ev"><b>④ 区县维护管理员确认入库</b>：核对实际入库数量，短信验证 → 闭环</div>
+        <div class="ev"><b>④ 区县维护管理员确认入库</b>：填写入库量确认与入库工单号，短信验证 → 闭环</div>
         <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
       </div>
       <p class="muted" style="margin-top:14px">原型说明：短信验证码为模拟（点击获取后页面显示验证码）；数据存本地浏览器，换设备不同步；正式版将接资料库/服务器实现在线同步与真实短信。</p>
@@ -388,7 +388,7 @@ function seedDB(){
       {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(5),remark:'',
        rows:[mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5))],
        status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'鲍军',t:fmtTime(Date.now()-4*864e5)}],
-       dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
+       dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},inbound:{qty:1,confirmQty:1,inNo:'RK-2026-003',by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true,note:'数量一致'},resubmit:null},
       {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'徐晓栋',phone:'13967868651',planDate:todayStr(),remark:'',
        rows:[mkRow(1,'GYTS','海曙-本地-09',48,1800,1780,2,'接头盒/钢绞线',todayStr())],
        status:'reported',createdAt:new Date(Date.now()-1*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-1*864e5)}],dismantle:null,inbound:null,resubmit:null},
@@ -719,7 +719,8 @@ function showDetail(o){
       <div class="k">经办人/手机</div><div>${esc(o.applicant)} · ${esc(o.phone)}</div>
       <div class="k">状态</div><div><span class="badge ${statusCls(o.status)}">${statusLabel(o.status)}</span></div>
       <div class="k">实际拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+'）':'未确认'}</div>
-      <div class="k">实际入库</div><div>${o.inbound?esc(o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
+      <div class="k">入库量确认</div><div>${o.inbound?esc(o.inbound.confirmQty!=null?o.inbound.confirmQty:o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
+      <div class="k">入库工单号</div><div>${o.inbound?esc(o.inbound.inNo||'-'):'未确认'}</div>
       <div class="k">备注</div><div>${esc(o.remark||'-')}</div></div>
     <div class="table-wrap"><table style="min-width:640px"><thead><tr><th>序</th><th>类型</th><th>光缆名称</th><th>芯数</th><th>计划(米)</th><th>数量</th><th>配套物料</th><th>盘点状态</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="timeline">${tl}</div>
@@ -743,8 +744,9 @@ function doDismantle(id){
 }
 function showInbound(o){
   openModal(`<h3>确认入库 · ${esc(o.workNo)}</h3>
-    <div class="muted" style="margin-bottom:10px">拆回数量：${o.dismantle?esc(o.dismantle.qty):'-'} 盘段　请核对实际入库数量。</div>
-    <div class="row"><label>实际入库数量(盘/段)</label><input id="i_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
+    <div class="muted" style="margin-bottom:10px">拆回数量：${o.dismantle?esc(o.dismantle.qty):'-'} 盘段　请核对并填写入库信息。</div>
+    <div class="row"><label>入库量确认(盘/段) *</label><input id="i_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
+    <div class="row"><label>入库工单号 *</label><input id="i_inNo" placeholder="如 RK-2026-001（仓库入库单号）"></div>
     <div class="row"><label>差异说明（可选）</label><textarea id="i_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
     ${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
@@ -752,9 +754,12 @@ function showInbound(o){
 }
 function doInbound(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
+  const inNo=document.getElementById('i_inNo').value.trim();
+  if(!inNo){toast('请填写入库工单号');return}
   if(!verifySMS())return;
-  o.inbound={qty:Number(document.getElementById('i_qty').value)||0,by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('i_note').value.trim()};
-  o.status='inbound';o.history.push({a:'确认入库，闭环',by:curUser().name,t:fmtTime(Date.now())});
+  const qty=Number(document.getElementById('i_qty').value)||0;
+  o.inbound={qty, confirmQty:qty, inNo, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('i_note').value.trim()};
+  o.status='inbound';o.history.push({a:'确认入库，入库工单号 '+inNo,by:curUser().name,t:fmtTime(Date.now())});
   saveDB();closeModal();refreshAll();toast('入库确认成功，工单闭环');
 }
 function showApprove(o){
