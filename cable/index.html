@@ -134,6 +134,19 @@ tr:nth-child(even) td{background:#fafbfd}
 .origin-block td,.origin-block th{padding:5px 6px}
 .stage-fields{border-top:2px solid var(--primary2);padding-top:12px;margin-top:6px}
 .stage-fields .stage-title{font-size:13px;font-weight:700;color:var(--primary2);margin-bottom:10px}
+/* ---------- maint integrated confirm ---------- */
+.msteps{display:flex;align-items:center;margin:16px 0}
+.mstep{display:flex;align-items:center;gap:8px;flex:1}
+.mstep .no{width:28px;height:28px;border-radius:50%;background:#e3e8ef;color:#8a97a8;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:13px}
+.mstep .t{font-size:13px;color:var(--muted);font-weight:600}
+.mstep.active .no{background:var(--primary2);color:#fff}.mstep.active .t{color:var(--primary)}
+.mstep.done .no{background:var(--ok);color:#fff}.mstep.done .t{color:var(--ok)}
+.mstep-line{height:2px;background:#e3e8ef;flex:1;margin:0 8px;min-width:20px}
+.mstep-line.done{background:var(--ok)}
+.m-disable{background:#f2f4f7;color:#aab3bf}
+.m-total{background:var(--primary-soft);font-weight:700;color:var(--primary)}
+.mbtn{min-height:42px;padding:0 18px;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer}
+.mbtn-main{background:var(--primary);color:#fff}.mbtn-ok{background:var(--ok);color:#fff}.mbtn-ghost{background:#fff;color:var(--primary2);border:1px solid var(--primary2)}
 /* ---------- toast / hint ---------- */
 #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#263444;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
@@ -316,8 +329,7 @@ tr:nth-child(even) td{background:#fafbfd}
         <div class="ev"><b>① 区县迁改管理员上报</b>：按区县、指定人+手机号验证、工单号唯一校验 → 提交整张盘点表</div>
         <div class="ev"><b>② 区县迁改管理员确认拆回</b>：现场核实拆回长度/数量，短信验证</div>
         <div class="ev"><b>③ 系统自动推送</b>：把拆回信息推送给本区县传输线路维护管理员（站内待办）</div>
-        <div class="ev"><b>④ 区县维护管理员确认数量</b>：核对实际入库数量，短信验证 → 待填入库单</div>
-        <div class="ev"><b>⑤ 区县维护管理员填写入库单</b>：填入库工单号，短信验证 → 闭环</div>
+        <div class="ev"><b>④⑤ 区县维护管理员维护确认（整合界面）</b>：工单详情 + 确认数量 + 填写入库单在同一页面完成——先看只读详情，步骤①逐行确认数量（短信验证），步骤②逐行填入库工单号（短信验证）→ 闭环，可"上一步"返回修改</div>
         <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
       </div>
       <div class="hint show" style="margin-top:14px">字段统一原则：明细表与原 Excel 盘点表一比一——每条光缆行都带「割接工单号、区县、工程/项目名称、项目单号、割接名称」，任何一行都能直接看出从属项目，不依赖上方表头。<br><br>数据不可变原则：上报时提交的整张表原封不动推送到各环节，各环节只能看到只读快照、只填写本环节字段（拆回量 / 逐行入库量+入库工单号），不能修改原始上报数据，全程留痕。</div>
@@ -497,8 +509,8 @@ function calcStats(){
 let toastTimer=null;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2600)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('mask').classList.add('show')}
-function closeModal(){document.getElementById('mask').classList.remove('show')}
+function openModal(html,wide){const m=document.getElementById('modal');m.innerHTML=html;m.style.maxWidth=wide?'900px':'';document.getElementById('mask').classList.add('show')}
+function closeModal(){document.getElementById('mask').classList.remove('show');document.getElementById('modal').style.maxWidth=''}
 let smsCode='';
 function sendSMS(){
   smsCode=String(Math.floor(100000+Math.random()*900000));
@@ -760,8 +772,8 @@ function openAction(act,id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
   if(act==='detail'){showDetail(o);return}
   if(act==='confirmDismantle'){showDismantle(o);return}
-  if(act==='confirmQty'){showQtyConfirm(o);return}
-  if(act==='fillInboundNo'){showInboundNo(o);return}
+  if(act==='confirmQty'){openMaintConfirm(o);return}
+  if(act==='fillInboundNo'){openMaintConfirm(o);return}
   if(act==='approveResubmit'){showApprove(o);return}
 }
 function smsBlock(){
@@ -831,68 +843,95 @@ function doDismantle(id){
   o.status='pushed';o.history.push({a:'确认拆回并推送给维护管理员',by:curUser().name,t:fmtTime(Date.now())});
   saveDB();closeModal();refreshAll();toast('已确认拆回，并推送给 '+o.county+' 维护管理员');
 }
-// 入库第一步：按光缆维度逐行确认数量
-function showQtyConfirm(o){
+/* ===== 维护确认整合界面（详情 + 确认数量 + 入库单 三合一）===== */
+let MC={id:null,step:1};
+function openMaintConfirm(o){
+  MC={id:o.id,step:(o.status==='qty_checked'?2:1)};
+  renderMaintConfirm();
+}
+function renderMaintConfirm(){
+  const o=DB.orders.find(x=>x.id===MC.id);if(!o)return;
+  const step=MC.step;
   const rows=(o.rows||[]).map((r,i)=>`<tr>
     <td>${i+1}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
     <td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td>
-    <td><input type="number" id="qc_qty_${i}" style="width:80px" value="${r.inQty!=null?r.inQty:r.qty}"></td>
+    <td><input type="number" id="mc_qty_${i}" style="width:82px" value="${r.inQty!=null?r.inQty:r.qty}" oninput="mcCalcSum()" ${step===2?'readonly class="m-disable"':''}></td>
+    <td><input id="mc_no_${i}" class="inNoInp" style="width:130px" value="${esc(r.inNo||'')}" placeholder="${step===1?'第①步后填写':'如 RK-2026-001'}" oninput="mcCalcSum()" ${step===1?'disabled class="m-disable"':''}></td>
   </tr>`).join('');
-  openModal(`<h3>确认数量 · ${esc(o.workNo)}</h3>
-    <div class="muted" style="margin-bottom:10px">按光缆维度逐行确认实际入库数量（默认带出该行回收数量，可修改）。上方原始上报内容不可修改。</div>
-    <div class="table-wrap"><table style="min-width:620px"><thead><tr>
+  const st1=step===1?'active':'done', st2=step===2?'active':'', line=step===2?'done':'';
+  const badge=step===1?'<span class="badge b-warn">已确认拆回 · 待确认数量</span>':'<span class="badge b-info">数量已确认 · 待填写入库单</span>';
+  openModal(`<h3>传输线路维护确认 · ${esc(o.workNo)} ${badge}</h3>
+    <div class="detail" style="background:#f7f9fc;border:1px dashed #b9c6d6;border-radius:10px;padding:12px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">工单详情（只读 · 不可修改）</div>
+      <div class="kv">
+        <div class="k">区县/工程</div><div>${esc(o.county)} · ${esc(o.projectName)}</div>
+        <div class="k">项目单号</div><div>${esc(o.projectNo||'-')}</div>
+        <div class="k">割接名称</div><div>${esc(o.cutoverName||'-')}</div>
+        <div class="k">经办人/手机</div><div>${esc(o.applicant)} · ${esc(o.phone)}</div>
+        <div class="k">计划完成日期</div><div>${esc(o.planDate||'-')}</div>
+      </div>
+    </div>
+    <div class="msteps">
+      <div class="mstep ${st1}" id="mcStep1"><div class="no">1</div><div class="t">确认数量</div></div>
+      <div class="mstep-line ${line}" id="mcLine"></div>
+      <div class="mstep ${st2}" id="mcStep2"><div class="no">2</div><div class="t">填写入库单</div></div>
+    </div>
+    <div class="table-wrap"><table style="min-width:760px"><thead><tr>
       <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>计划回收(米)</th><th>回收数量</th>
-      <th>入库量确认（传输线路维护管理员）</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="stage-fields"><div class="row"><label>差异说明（可选）</label><textarea id="qc_note" placeholder="如与回收数量不一致，请说明原因"></textarea></div>
-    ${smsBlock()}
-    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
-      <button class="btn-sm" onclick="doQtyConfirm('${o.id}')">确认数量</button></div></div>`);
+      <th>入库量确认（传输线路维护管理员）</th><th>入库工单号</th>
+    </tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr class="m-total"><td colspan="6">合计</td><td id="mcSumQty">0</td><td id="mcSumNo">—</td></tr></tfoot></table></div>
+    <div class="stage-fields">
+      <div class="stage-title" id="mcFootTitle">步骤① 确认数量</div>
+      <div class="row"><label id="mcNoteLbl">差异说明（可选）</label><textarea id="mc_note" placeholder="如与回收数量不一致，请说明原因">${step===2&&o.qtyCheck&&o.qtyCheck.note?esc(o.qtyCheck.note):''}</textarea></div>
+      ${smsBlock()}
+      <div class="modal-foot">
+        <button class="mbtn mbtn-ghost" id="mcBack" style="display:${step===2?'inline-flex':'none'}" onclick="mcBack()">上一步</button>
+        <button class="mbtn ${step===1?'mbtn-main':'mbtn-ok'}" id="mcNext" onclick="mcNext()">${step===1?'确认数量 →':'确认入库单 ✓'}</button>
+      </div>
+    </div>`,true);
+  mcCalcSum();
 }
-function doQtyConfirm(id){
-  const o=DB.orders.find(x=>x.id===id);if(!o)return;
-  if(!verifySMS())return;
-  let total=0;
+function mcCalcSum(){
+  const o=DB.orders.find(x=>x.id===MC.id);if(!o)return;
+  let t=0;const nos=[];
   (o.rows||[]).forEach((r,i)=>{
-    const el=document.getElementById('qc_qty_'+i);
-    r.inQty=el?(Number(el.value)||0):(Number(r.qty)||0);
-    total+=r.inQty;
+    const q=document.getElementById('mc_qty_'+i), n=document.getElementById('mc_no_'+i);
+    t+=q?(Number(q.value)||0):0;
+    if(n&&n.value.trim())nos.push(n.value.trim());
   });
-  o.qtyCheck={qty:total, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('qc_note').value.trim()};
-  o.status='qty_checked';
-  o.history.push({a:'确认数量（逐行）合计 '+total+' 盘段',by:curUser().name,t:fmtTime(Date.now())});
-  saveDB();closeModal();refreshAll();toast('数量已逐行确认，下一步请填写入库单');
+  const se=document.getElementById('mcSumQty');if(se)se.textContent=t;
+  const ne=document.getElementById('mcSumNo');if(ne)ne.textContent=MC.step===2?[...new Set(nos)].join('/'):'—';
 }
-// 入库第二步：按光缆维度逐行填写入库工单号
-function showInboundNo(o){
-  const rows=(o.rows||[]).map((r,i)=>`<tr>
-    <td>${i+1}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td>
-    <td>${r.inQty!=null?esc(r.inQty):'-'}</td>
-    <td><input id="i_inNo_${i}" style="width:150px" value="${esc(r.inNo||'')}" placeholder="如 RK-2026-001"></td>
-  </tr>`).join('');
-  openModal(`<h3>填写入库单 · ${esc(o.workNo)}</h3>
-    <div class="muted" style="margin-bottom:10px">按光缆维度逐行为每条光缆填写入库工单号。每行均需填写。</div>
-    <div class="table-wrap"><table style="min-width:520px"><thead><tr>
-      <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>入库量确认</th><th>入库工单号 *</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="stage-fields">${smsBlock()}
-    <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
-      <button class="btn-sm ok" onclick="doInboundNo('${o.id}')">确认入库单</button></div></div>`);
-}
-function doInboundNo(id){
-  const o=DB.orders.find(x=>x.id===id);if(!o)return;
-  const vals=(o.rows||[]).map((r,i)=>{
-    const el=document.getElementById('i_inNo_'+i);return el?el.value.trim():'';
-  });
-  if(vals.some(v=>!v)){toast('请为每条光缆填写入库工单号');return}
+function mcNext(){
+  const o=DB.orders.find(x=>x.id===MC.id);if(!o)return;
+  const vals=(o.rows||[]).map((r,i)=>{const e=document.getElementById('mc_qty_'+i);return e?e.value.trim():''});
+  if(MC.step===1){
+    if(vals.some(v=>v==='')){toast('请为每条光缆填写入库量确认');return}
+    if(!verifySMS())return;
+    let total=0;
+    (o.rows||[]).forEach((r,i)=>{r.inQty=Number(document.getElementById('mc_qty_'+i).value)||0;total+=r.inQty});
+    o.qtyCheck={qty:total,by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('mc_note').value.trim()};
+    o.status='qty_checked';
+    o.history.push({a:'确认数量（逐行）合计 '+total+' 盘段',by:curUser().name,t:fmtTime(Date.now())});
+    saveDB();
+    MC.step=2;renderMaintConfirm();toast('数量已确认，请填写入库工单号');return;
+  }
+  // 步骤②：填写入库单
+  const nos=(o.rows||[]).map((r,i)=>{const e=document.getElementById('mc_no_'+i);return e?e.value.trim():''});
+  if(nos.some(v=>!v)){toast('请为每条光缆填写入库工单号');return}
   if(!verifySMS())return;
-  (o.rows||[]).forEach((r,i)=>{r.inNo=vals[i]});
-  const qty=(o.qtyCheck?o.qtyCheck.qty:0);
-  const uniqNos=[...new Set(vals)].join('/');
-  o.inbound={qty, confirmQty:qty, inNo:uniqNos, by:curUser().name,t:fmtTime(Date.now()),sms:true};
+  (o.rows||[]).forEach((r,i)=>{r.inNo=nos[i]});
+  const qty=o.qtyCheck?o.qtyCheck.qty:0;
+  const uniqNos=[...new Set(nos)].join('/');
+  o.inbound={qty,confirmQty:qty,inNo:uniqNos,by:curUser().name,t:fmtTime(Date.now()),sms:true};
   o.status='inbound';
   o.history.push({a:'填写入库单（逐行）'+uniqNos+'，闭环',by:curUser().name,t:fmtTime(Date.now())});
   saveDB();closeModal();refreshAll();toast('入库单已逐行登记，工单闭环');
+}
+function mcBack(){
+  if(MC.step!==2)return;
+  MC.step=1;renderMaintConfirm();
 }
 function showApprove(o){
   const r=o.resubmit;
