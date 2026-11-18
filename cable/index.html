@@ -86,6 +86,14 @@ body{
 }
 .tab.active{color:var(--primary);border-bottom-color:var(--primary2)}
 .view{display:none} .view.active{display:block}
+/* ---------- query bar ---------- */
+.query-bar{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.query-title{font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px}
+.query-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.query-grid .field label{font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:600}
+.query-grid .field input,.query-grid .field select{width:100%;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-height:42px}
+.query-foot{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+@media(max-width:768px){.query-grid{grid-template-columns:1fr}}
 /* ---------- table ---------- */
 .table-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
@@ -250,6 +258,25 @@ tr:nth-child(even) td{background:#fafbfd}
     <!-- 列表 -->
     <div class="view active" id="view-list">
       <div class="muted" id="listScopeNote" style="margin-bottom:10px"></div>
+      <!-- 工单查询 -->
+      <div class="query-bar">
+        <div class="query-title">工单查询 <span class="muted" style="font-weight:400">按条件组合筛选</span></div>
+        <div class="query-grid">
+          <div class="field"><label>关键词（工单号/工程/项目单号/割接名称）</label><input id="q_key" placeholder="输入关键词" oninput="renderList()"></div>
+          <div class="field"><label>区县</label><select id="q_county" onchange="renderList()"><option value="">全部区县</option></select></div>
+          <div class="field"><label>状态</label><select id="q_status" onchange="renderList()">
+            <option value="">全部状态</option><option value="reported">已上报·待确认拆回</option>
+            <option value="pushed">已确认拆回·待确认数量</option><option value="qty_checked">数量已确认·待填写入库单</option>
+            <option value="inbound">已入库·闭环</option></select></div>
+          <div class="field"><label>上报日期-起</label><input id="q_from" type="date" onchange="renderList()"></div>
+          <div class="field"><label>上报日期-止</label><input id="q_to" type="date" onchange="renderList()"></div>
+          <div class="field"><label>入库工单号</label><input id="q_inNo" placeholder="按入库单号查" oninput="renderList()"></div>
+        </div>
+        <div class="query-foot">
+          <button class="btn-sm ghost" onclick="resetQuery()">重置查询</button>
+          <span class="muted" id="queryResultNote"></span>
+        </div>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
@@ -536,6 +563,14 @@ function renderIdentity(){
   tabs.forEach(t=>t.style.display=hasRole(u,'mgmt')?'':'none');
   const wl=WHITELIST[u.county]||[];
   document.getElementById('f_applicant').innerHTML='<option value="">请选择</option>'+wl.map(w=>`<option value="${esc(w.name)}">${esc(w.name)}</option>`).join('');
+  // 查询栏区县下拉：市公司可见全部，区县用户仅本区县
+  const qc=document.getElementById('q_county');
+  if(qc){
+    const opts=hasRole(u,'city')?REGIONS:[u.county];
+    const cur=qc.value;
+    qc.innerHTML='<option value="">全部区县</option>'+opts.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    qc.value=cur;
+  }
 }
 function roleName(u){
   const map={mgmt:'迁改管理员',city:'市公司管理员',maint:'维护管理员'};
@@ -569,10 +604,45 @@ function renderStats(){
     cell(s.len.toLocaleString(),'计划回收合计(米)')+cell(getTodo().length,'我的待办')+cell(s.reapprove,'待审批重报','warn');
 }
 
+// 查询过滤：在区县隔离后的可见数据里按条件筛选
+function filterOrders(){
+  let list=visibleOrders();
+  const key=(document.getElementById('q_key')?.value||'').trim().toLowerCase();
+  const county=document.getElementById('q_county')?.value||'';
+  const status=document.getElementById('q_status')?.value||'';
+  const from=document.getElementById('q_from')?.value||'';
+  const to=document.getElementById('q_to')?.value||'';
+  const inNo=(document.getElementById('q_inNo')?.value||'').trim().toLowerCase();
+  list=list.filter(o=>{
+    if(county&&o.county!==county)return false;
+    if(status&&o.status!==status)return false;
+    if(key){
+      const hay=[o.workNo,o.projectName,o.projectNo,o.cutoverName,o.applicant,(o.rows||[]).map(r=>r.cableName).join(' ')].join(' ').toLowerCase();
+      if(hay.indexOf(key)<0)return false;
+    }
+    if(from||to){
+      const d=(o.createdAt||'').slice(0,10);
+      if(from&&d<from)return false;
+      if(to&&d>to)return false;
+    }
+    if(inNo){
+      const nos=(o.rows||[]).map(r=>r.inNo||'').join(' ')+' '+(o.inbound?.inNo||'');
+      if(nos.toLowerCase().indexOf(inNo)<0)return false;
+    }
+    return true;
+  });
+  return list;
+}
+function resetQuery(){
+  ['q_key','q_county','q_status','q_from','q_to','q_inNo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  renderList();toast('查询条件已重置');
+}
 function renderList(){
-  const body=document.getElementById('listBody');const list=visibleOrders();const u=curUser();
+  const body=document.getElementById('listBody');const list=filterOrders();const u=curUser();
   document.getElementById('listScopeNote').textContent=hasRole(u,'city')?'数据范围：全市所有区县（市公司管理员）':`数据范围：仅 ${u.county}（区县数据隔离）`;
-  if(!list.length){body.innerHTML='<tr><td colspan="8" class="muted">暂无数据，去"新建上报"添加一条。</td></tr>';return}
+  const note=document.getElementById('queryResultNote');
+  if(note)note.textContent=`共查到 ${list.length} 条工单`;
+  if(!list.length){body.innerHTML='<tr><td colspan="8" class="muted">未查到符合条件的工单，请调整查询条件。</td></tr>';return}
   body.innerHTML=list.map(o=>{
     const ops=[];
     ops.push(`<button class="btn-sm ghost" onclick="openAction('detail','${o.id}')">详情</button>`);
