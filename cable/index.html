@@ -124,6 +124,15 @@ tr:nth-child(even) td{background:#fafbfd}
 .timeline{border-left:2px solid var(--line);margin:10px 0 0 6px;padding-left:14px}
 .timeline .ev{position:relative;padding:4px 0;font-size:12px;color:var(--muted)}
 .timeline .ev::before{content:"";position:absolute;left:-20px;top:10px;width:8px;height:8px;border-radius:50%;background:var(--primary2)}
+/* ---------- original snapshot (只读) ---------- */
+.origin-block{background:#f7f9fc;border:1px dashed #b9c6d6;border-radius:10px;padding:12px;margin-bottom:14px}
+.origin-block .origin-title{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.origin-block .lock{font-size:11px;background:#eef2f7;color:var(--muted);padding:1px 7px;border-radius:10px;font-weight:600}
+.origin-block table{font-size:11px;min-width:760px}
+.origin-block th{background:#7b93b0}
+.origin-block td,.origin-block th{padding:5px 6px}
+.stage-fields{border-top:2px solid var(--primary2);padding-top:12px;margin-top:6px}
+.stage-fields .stage-title{font-size:13px;font-weight:700;color:var(--primary2);margin-bottom:10px}
 /* ---------- toast / hint ---------- */
 #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#263444;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
@@ -302,7 +311,8 @@ tr:nth-child(even) td{background:#fafbfd}
         <div class="ev"><b>④ 区县维护管理员确认入库</b>：填写入库量确认与入库工单号，短信验证 → 闭环</div>
         <div class="ev"><b>特批分支</b>：工单号填错需重报 → 发起"二次提交申请" → 市公司管理员审批通过后才可再提交</div>
       </div>
-      <p class="muted" style="margin-top:14px">原型说明：短信验证码为模拟（点击获取后页面显示验证码）；数据存本地浏览器，换设备不同步；正式版将接资料库/服务器实现在线同步与真实短信。</p>
+      <div class="hint show" style="margin-top:14px">数据不可变原则：上报时提交的整张表（全部字段+明细）原封不动推送到各环节，各环节只能看到只读快照、只填写本环节的确认字段（拆回量 / 入库量+入库工单号），任何环节都不能修改原始上报数据。所有历史留痕可追溯。</div>
+      <p class="muted" style="margin-top:12px">原型说明：短信验证码为模拟（点击获取后页面显示验证码）；数据存本地浏览器，换设备不同步；正式版将接资料库/服务器实现在线同步与真实短信。</p>
     </div>
   </div>
 
@@ -709,31 +719,53 @@ function smsBlock(){
     <div class="row"><button class="btn-sm ghost" onclick="sendSMS()">获取短信验证码</button></div>
     <div class="row"><label>输入验证码</label><input id="smsInput" inputmode="numeric" placeholder="6位验证码"></div>`;
 }
-function showDetail(o){
-  const tl=(o.history||[]).map(h=>`<div class="ev">${esc(h.a)} · ${esc(h.by)} · ${esc(h.t)}</div>`).join('');
-  const rows=o.rows.map(r=>`<tr><td>${r.seq}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td><td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td><td>${esc(r.material)}</td><td>${esc(r.invStatus)}</td></tr>`).join('');
-  openModal(`<h3>工单详情 · ${esc(o.workNo)}</h3>
-    <div class="kv"><div class="k">区县/工程</div><div>${esc(o.county)} · ${esc(o.projectName)}</div>
+// 原始上报内容只读快照（完整字段+明细），各流转环节共用，任何人不可修改
+function renderOriginalBlock(o){
+  const rows=(o.rows||[]).map(r=>`<tr>
+    <td>${r.seq}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
+    <td>${esc(r.designLen)}</td><td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td>
+    <td>${esc(r.material)}</td><td>${esc(r.planDate)}</td><td>${esc(r.handler)}</td><td>${esc(r.invStatus)}</td><td class="left">${esc(r.remark)}</td>
+  </tr>`).join('');
+  return `<div class="origin-block">
+    <div class="origin-title">原始上报内容 <span class="lock">只读 · 不可修改</span></div>
+    <div class="kv">
+      <div class="k">割接工单号</div><div>${esc(o.workNo)}</div>
+      <div class="k">区县/工程</div><div>${esc(o.county)} · ${esc(o.projectName)}</div>
       <div class="k">项目单号</div><div>${esc(o.projectNo||'-')}</div>
       <div class="k">割接名称</div><div>${esc(o.cutoverName||'-')}</div>
       <div class="k">经办人/手机</div><div>${esc(o.applicant)} · ${esc(o.phone)}</div>
-      <div class="k">状态</div><div><span class="badge ${statusCls(o.status)}">${statusLabel(o.status)}</span></div>
-      <div class="k">实际拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+'）':'未确认'}</div>
-      <div class="k">入库量确认</div><div>${o.inbound?esc(o.inbound.confirmQty!=null?o.inbound.confirmQty:o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
-      <div class="k">入库工单号</div><div>${o.inbound?esc(o.inbound.inNo||'-'):'未确认'}</div>
-      <div class="k">备注</div><div>${esc(o.remark||'-')}</div></div>
-    <div class="table-wrap"><table style="min-width:640px"><thead><tr><th>序</th><th>类型</th><th>光缆名称</th><th>芯数</th><th>计划(米)</th><th>数量</th><th>配套物料</th><th>盘点状态</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="k">计划完成日期</div><div>${esc(o.planDate||'-')}</div>
+      <div class="k">备注</div><div>${esc(o.remark||'-')}</div>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>设计回收(米)</th><th>计划回收(米)</th>
+      <th>回收数量</th><th>配套物料</th><th>计划完成日期</th><th>经办班组/人</th><th>盘点状态</th><th>备注</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+function showDetail(o){
+  const tl=(o.history||[]).map(h=>`<div class="ev">${esc(h.a)} · ${esc(h.by)} · ${esc(h.t)}</div>`).join('');
+  openModal(`<h3>工单详情 · ${esc(o.workNo)} <span class="badge ${statusCls(o.status)}" style="vertical-align:middle">${statusLabel(o.status)}</span></h3>
+    ${renderOriginalBlock(o)}
+    <div class="stage-fields"><div class="stage-title">各环节确认记录（仅本环节填写）</div>
+    <div class="kv">
+      <div class="k">① 确认拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+' · '+esc(o.dismantle.t)+'）':'未确认'}</div>
+      <div class="k">② 入库量确认</div><div>${o.inbound?esc(o.inbound.confirmQty!=null?o.inbound.confirmQty:o.inbound.qty)+'盘段（'+esc(o.inbound.by)+'）':'未确认'}</div>
+      <div class="k">③ 入库工单号</div><div>${o.inbound?esc(o.inbound.inNo||'-'):'未确认'}</div>
+    </div></div>
     <div class="timeline">${tl}</div>
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">关闭</button></div>`);
 }
 function showDismantle(o){
   openModal(`<h3>确认拆回 · ${esc(o.workNo)}</h3>
-    <div class="muted" style="margin-bottom:10px">现场核实实际拆回的长度与盘/段数，确认后将自动推送给本区县维护管理员。</div>
+    ${renderOriginalBlock(o)}
+    <div class="stage-fields"><div class="stage-title">本环节：确认拆回（仅填写本环节字段）</div>
+    <div class="muted" style="margin-bottom:10px">现场核实实际拆回的长度与盘/段数，确认后将自动推送给本区县维护管理员。上方原始上报内容不可修改。</div>
     <div class="row"><label>实际拆回长度(米)</label><input id="d_len" type="number" step="0.1" value="${sumField(o,'planLen')}"></div>
     <div class="row"><label>实际拆回数量(盘/段)</label><input id="d_qty" type="number" value="${sumField(o,'qty')}"></div>
     ${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
-      <button class="btn-sm" onclick="doDismantle('${o.id}')">确认并推送</button></div>`);
+      <button class="btn-sm" onclick="doDismantle('${o.id}')">确认并推送</button></div></div>`);
 }
 function doDismantle(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
@@ -744,13 +776,15 @@ function doDismantle(id){
 }
 function showInbound(o){
   openModal(`<h3>确认入库 · ${esc(o.workNo)}</h3>
-    <div class="muted" style="margin-bottom:10px">拆回数量：${o.dismantle?esc(o.dismantle.qty):'-'} 盘段　请核对并填写入库信息。</div>
+    ${renderOriginalBlock(o)}
+    <div class="stage-fields"><div class="stage-title">本环节：确认入库（仅填写本环节字段）</div>
+    <div class="muted" style="margin-bottom:10px">上游拆回确认：${o.dismantle?esc(o.dismantle.qty)+' 盘段（'+esc(o.dismantle.by)+'）':'无'}。上方原始上报内容不可修改。</div>
     <div class="row"><label>入库量确认(盘/段) *</label><input id="i_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
     <div class="row"><label>入库工单号 *</label><input id="i_inNo" placeholder="如 RK-2026-001（仓库入库单号）"></div>
     <div class="row"><label>差异说明（可选）</label><textarea id="i_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
     ${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
-      <button class="btn-sm ok" onclick="doInbound('${o.id}')">确认入库</button></div>`);
+      <button class="btn-sm ok" onclick="doInbound('${o.id}')">确认入库</button></div></div>`);
 }
 function doInbound(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
