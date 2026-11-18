@@ -129,7 +129,7 @@ tr:nth-child(even) td{background:#fafbfd}
 .origin-block{background:#f7f9fc;border:1px dashed #b9c6d6;border-radius:10px;padding:12px;margin-bottom:14px}
 .origin-block .origin-title{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .origin-block .lock{font-size:11px;background:#eef2f7;color:var(--muted);padding:1px 7px;border-radius:10px;font-weight:600}
-.origin-block table{font-size:11px;min-width:760px}
+.origin-block table{font-size:11px;min-width:1080px}
 .origin-block th{background:#7b93b0}
 .origin-block td,.origin-block th{padding:5px 6px}
 .stage-fields{border-top:2px solid var(--primary2);padding-top:12px;margin-top:6px}
@@ -285,6 +285,8 @@ tr:nth-child(even) td{background:#fafbfd}
             <th style="min-width:110px">经办班组/人</th>
             <th style="min-width:96px">盘点状态</th>
             <th style="min-width:130px">备注</th>
+            <th style="min-width:120px">入库量确认（传输线路维护管理员）</th>
+            <th style="min-width:120px">入库工单号</th>
             <th style="min-width:52px">操作</th>
           </tr></thead>
           <tbody id="detailBody"></tbody>
@@ -292,7 +294,7 @@ tr:nth-child(even) td{background:#fafbfd}
             <td colspan="5">合计</td>
             <td id="sum_planLen">0</td>
             <td id="sum_qty">0</td>
-            <td colspan="5"></td>
+            <td colspan="7"></td>
           </tr></tfoot>
         </table>
       </div>
@@ -386,7 +388,7 @@ function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFull
 function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 
 function seedDB(){
-  const mkRow=(seq,type,name,cores,design,plan,qty,material,pdate)=>({seq,cableType:type,cableName:name,cores,designLen:design,planLen:plan,qty,material,planDate:pdate,handler:'',invStatus:'待回收',remark:''});
+  const mkRow=(seq,type,name,cores,design,plan,qty,material,pdate)=>({seq,cableType:type,cableName:name,cores,designLen:design,planLen:plan,qty,material,planDate:pdate,handler:'',invStatus:'待回收',remark:'',inQty:null,inNo:''});
   return {
     currentUser:'u_yz_qg',
     orders:[
@@ -398,7 +400,7 @@ function seedDB(){
        status:'pushed',createdAt:new Date(Date.now()-3*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'李宁建',t:fmtTime(Date.now()-2*864e5)}],
        dismantle:{len:2040,qty:2,by:'李宁建',t:fmtTime(Date.now()-2*864e5),sms:true},inbound:null,resubmit:null},
       {id:uid(),workNo:'GJ-2026-003',county:'海曙区',projectName:'海曙老旧光缆拆旧',projectNo:'XM-2026-008',cutoverName:'天一广场割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(5),remark:'',
-       rows:[mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5))],
+       rows:[Object.assign(mkRow(1,'GYTS','海曙-接入-03',24,900,880,1,'标牌',daysAgo(5)),{inQty:1,inNo:'RK-2026-003'})],
        status:'inbound',createdAt:new Date(Date.now()-8*864e5).toISOString(),history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-8*864e5)},{a:'确认入库',by:'鲍军',t:fmtTime(Date.now()-4*864e5)}],
        dismantle:{len:875,qty:1,by:'徐晓栋',t:fmtTime(Date.now()-6*864e5),sms:true},qtyCheck:{qty:1,by:'鲍军',t:fmtTime(Date.now()-5*864e5),sms:true,note:'数量一致'},inbound:{qty:1,confirmQty:1,inNo:'RK-2026-003',by:'鲍军',t:fmtTime(Date.now()-4*864e5),sms:true},resubmit:null},
       {id:uid(),workNo:'GJ-2026-004',county:'海曙区',projectName:'海曙汇聚层改造',projectNo:'XM-2026-009',cutoverName:'鼓楼割接',applicant:'徐晓栋',phone:'13967868651',planDate:todayStr(),remark:'',
@@ -409,7 +411,7 @@ function seedDB(){
        status:'reported',createdAt:new Date(Date.now()-2*864e5).toISOString(),history:[{a:'上报',by:'李宁建',t:fmtTime(Date.now()-2*864e5)}],dismantle:null,inbound:null,
        resubmit:{need:true,reason:'割接工单号填写有误，申请重报',applicant:'李宁建',t:fmtTime(Date.now()-1*864e5),approved:null,approver:'',approveTime:''}},
       {id:uid(),workNo:'GJ-2026-006',county:'海曙区',projectName:'海曙接入层拆旧',projectNo:'XM-2026-014',cutoverName:'望春割接',applicant:'徐晓栋',phone:'13967868651',planDate:daysAgo(1),remark:'数量已确认待填单',
-       rows:[mkRow(1,'GYTS','海曙-接入-11',24,1200,1180,2,'接头盒/标牌',daysAgo(1))],
+       rows:[Object.assign(mkRow(1,'GYTS','海曙-接入-11',24,1200,1180,2,'接头盒/标牌',daysAgo(1)),{inQty:2,inNo:''})],
        status:'qty_checked',createdAt:new Date(Date.now()-3*864e5).toISOString(),
        history:[{a:'上报',by:'徐晓栋',t:fmtTime(Date.now()-3*864e5)},{a:'确认拆回并推送',by:'徐晓栋',t:fmtTime(Date.now()-2*864e5)},{a:'确认数量 2 盘段',by:'鲍军',t:fmtTime(Date.now()-1*864e5)}],
        dismantle:{len:1170,qty:2,by:'徐晓栋',t:fmtTime(Date.now()-2*864e5),sms:true},qtyCheck:{qty:2,by:'鲍军',t:fmtTime(Date.now()-1*864e5),sms:true,note:''},inbound:null,resubmit:null}
@@ -421,8 +423,14 @@ function loadDB(){
     const raw=localStorage.getItem(KEY);
     if(raw){
       const d=JSON.parse(raw);
-      // 兼容迁移：把旧的光缆类型值映射到新选项，避免下拉空白
-      (d.orders||[]).forEach(o=>(o.rows||[]).forEach(r=>{r.cableType=normCableType(r.cableType)}));
+      // 兼容迁移：光缆类型映射 + 入库字段从整单级下沉到每条光缆明细行
+      (d.orders||[]).forEach(o=>{
+        (o.rows||[]).forEach(r=>{
+          r.cableType=normCableType(r.cableType);
+          if(r.inQty==null)r.inQty=(o.inbound&&o.inbound.confirmQty!=null)?o.inbound.confirmQty:(o.qtyCheck?o.qtyCheck.qty:null);
+          if(r.inNo==null)r.inNo=(o.inbound&&o.inbound.inNo)||'';
+        });
+      });
       localStorage.setItem(KEY,JSON.stringify(d));
       return d;
     }
@@ -580,6 +588,8 @@ function rowHTML(r,i){
     <td><input value="${esc(r.handler)}" oninput="setCell(${i},'handler',this.value)"></td>
     <td><select onchange="setCell(${i},'invStatus',this.value)">${opt(INV_STATUS,r.invStatus)}</select></td>
     <td><input value="${esc(r.remark)}" oninput="setCell(${i},'remark',this.value)"></td>
+    <td style="background:#f7f9fc"><input value="${esc(r.inQty!=null?r.inQty:'')}" readonly placeholder="入库环节填写"></td>
+    <td style="background:#f7f9fc"><input value="${esc(r.inNo||'')}" readonly placeholder="入库环节填写"></td>
     <td><button class="btn-sm danger" onclick="delRow(${i})">删</button></td>
   </tr>`;
 }
@@ -664,7 +674,7 @@ function logout(){
   document.getElementById('appWrap').style.display='none';
   document.getElementById('loginMask').style.display='flex';
 }
-function newRow(seq){return {seq,cableType:'GYTA',cableName:'',cores:'',designLen:'',planLen:'',qty:'',material:'无',planDate:todayStr(),handler:'',invStatus:'待回收',remark:''}}
+function newRow(seq){return {seq,cableType:'GYTA',cableName:'',cores:'',designLen:'',planLen:'',qty:'',material:'无',planDate:todayStr(),handler:'',invStatus:'待回收',remark:'',inQty:null,inNo:''}}
 function initDraft(){
   const u=curUser();
   _draft={rows:[newRow(1),newRow(2)],county:u.county};
@@ -736,6 +746,7 @@ function renderOriginalBlock(o){
     <td>${r.seq}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
     <td>${esc(r.designLen)}</td><td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td>
     <td>${esc(r.material)}</td><td>${esc(r.planDate)}</td><td>${esc(r.handler)}</td><td>${esc(r.invStatus)}</td><td class="left">${esc(r.remark)}</td>
+    <td>${r.inQty!=null?esc(r.inQty):'-'}</td><td>${esc(r.inNo||'-')}</td>
   </tr>`).join('');
   return `<div class="origin-block">
     <div class="origin-title">原始上报内容 <span class="lock">只读 · 不可修改</span></div>
@@ -751,6 +762,7 @@ function renderOriginalBlock(o){
     <div class="table-wrap"><table><thead><tr>
       <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>设计回收(米)</th><th>计划回收(米)</th>
       <th>回收数量</th><th>配套物料</th><th>计划完成日期</th><th>经办班组/人</th><th>盘点状态</th><th>备注</th>
+      <th>入库量确认（传输线路维护管理员）</th><th>入库工单号</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
   </div>`;
 }
@@ -761,8 +773,8 @@ function showDetail(o){
     <div class="stage-fields"><div class="stage-title">各环节确认记录（仅本环节填写）</div>
     <div class="kv">
       <div class="k">① 确认拆回</div><div>${o.dismantle?esc(o.dismantle.len)+'米 / '+esc(o.dismantle.qty)+'盘段（'+esc(o.dismantle.by)+' · '+esc(o.dismantle.t)+'）':'未确认'}</div>
-      <div class="k">② 确认数量</div><div>${o.qtyCheck?esc(o.qtyCheck.qty)+'盘段（'+esc(o.qtyCheck.by)+' · '+esc(o.qtyCheck.t)+'）':'未确认'}</div>
-      <div class="k">③ 入库单</div><div>${o.inbound?esc(o.inbound.inNo||'-')+'（'+esc(o.inbound.by)+' · '+esc(o.inbound.t)+'）':'未确认'}</div>
+      <div class="k">② 确认数量</div><div>${o.qtyCheck?esc(o.qtyCheck.qty)+'盘段（逐行确认 · '+esc(o.qtyCheck.by)+' · '+esc(o.qtyCheck.t)+'）':'未确认'}</div>
+      <div class="k">③ 入库单</div><div>${o.inbound?esc(o.inbound.inNo||'-')+'（逐行填写 · '+esc(o.inbound.by)+' · '+esc(o.inbound.t)+'）':'未确认'}</div>
     </div></div>
     <div class="timeline">${tl}</div>
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">关闭</button></div>`);
@@ -785,14 +797,20 @@ function doDismantle(id){
   o.status='pushed';o.history.push({a:'确认拆回并推送给维护管理员',by:curUser().name,t:fmtTime(Date.now())});
   saveDB();closeModal();refreshAll();toast('已确认拆回，并推送给 '+o.county+' 维护管理员');
 }
-// 入库第一步：确认数量
+// 入库第一步：按光缆维度逐行确认数量
 function showQtyConfirm(o){
+  const rows=(o.rows||[]).map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td><td>${esc(r.cores)}</td>
+    <td>${esc(r.planLen)}</td><td>${esc(r.qty)}</td>
+    <td><input type="number" id="qc_qty_${i}" style="width:80px" value="${r.inQty!=null?r.inQty:r.qty}"></td>
+  </tr>`).join('');
   openModal(`<h3>确认数量 · ${esc(o.workNo)}</h3>
-    ${renderOriginalBlock(o)}
-    <div class="stage-fields"><div class="stage-title">步骤① 确认数量（仅填写本步骤字段）</div>
-    <div class="muted" style="margin-bottom:10px">上游拆回确认：${o.dismantle?esc(o.dismantle.qty)+' 盘段（'+esc(o.dismantle.by)+'）':'无'}。核对后确认实际入库数量，下一步再填写入库单。</div>
-    <div class="row"><label>入库量确认(盘/段) *</label><input id="qc_qty" type="number" value="${o.dismantle?o.dismantle.qty:0}"></div>
-    <div class="row"><label>差异说明（可选）</label><textarea id="qc_note" placeholder="如与拆回数量不一致，请说明原因"></textarea></div>
+    <div class="muted" style="margin-bottom:10px">按光缆维度逐行确认实际入库数量（默认带出该行回收数量，可修改）。上方原始上报内容不可修改。</div>
+    <div class="table-wrap"><table style="min-width:620px"><thead><tr>
+      <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>芯数</th><th>计划回收(米)</th><th>回收数量</th>
+      <th>入库量确认（传输线路维护管理员）</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="stage-fields"><div class="row"><label>差异说明（可选）</label><textarea id="qc_note" placeholder="如与回收数量不一致，请说明原因"></textarea></div>
     ${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
       <button class="btn-sm" onclick="doQtyConfirm('${o.id}')">确认数量</button></div></div>`);
@@ -800,36 +818,47 @@ function showQtyConfirm(o){
 function doQtyConfirm(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
   if(!verifySMS())return;
-  const qty=Number(document.getElementById('qc_qty').value)||0;
-  o.qtyCheck={qty, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('qc_note').value.trim()};
+  let total=0;
+  (o.rows||[]).forEach((r,i)=>{
+    const el=document.getElementById('qc_qty_'+i);
+    r.inQty=el?(Number(el.value)||0):(Number(r.qty)||0);
+    total+=r.inQty;
+  });
+  o.qtyCheck={qty:total, by:curUser().name,t:fmtTime(Date.now()),sms:true,note:document.getElementById('qc_note').value.trim()};
   o.status='qty_checked';
-  o.history.push({a:'确认数量 '+qty+' 盘段',by:curUser().name,t:fmtTime(Date.now())});
-  saveDB();closeModal();refreshAll();toast('数量已确认，下一步请填写入库单');
+  o.history.push({a:'确认数量（逐行）合计 '+total+' 盘段',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('数量已逐行确认，下一步请填写入库单');
 }
-// 入库第二步：填写入库单
+// 入库第二步：按光缆维度逐行填写入库工单号
 function showInboundNo(o){
+  const rows=(o.rows||[]).map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${esc(r.cableType)}</td><td class="left">${esc(r.cableName)}</td>
+    <td>${r.inQty!=null?esc(r.inQty):'-'}</td>
+    <td><input id="i_inNo_${i}" style="width:150px" value="${esc(r.inNo||'')}" placeholder="如 RK-2026-001"></td>
+  </tr>`).join('');
   openModal(`<h3>填写入库单 · ${esc(o.workNo)}</h3>
-    ${renderOriginalBlock(o)}
-    <div class="stage-fields"><div class="stage-title">步骤② 填写入库单（仅填写本步骤字段）</div>
-    <div class="kv" style="margin-bottom:10px">
-      <div class="k">已确认数量</div><div>${o.qtyCheck?esc(o.qtyCheck.qty)+' 盘段（'+esc(o.qtyCheck.by)+' · '+esc(o.qtyCheck.t)+'）':'未确认'}</div>
-    </div>
-    <div class="row"><label>入库工单号 *</label><input id="i_inNo" placeholder="如 RK-2026-001（仓库入库单号）"></div>
-    ${smsBlock()}
+    <div class="muted" style="margin-bottom:10px">按光缆维度逐行为每条光缆填写入库工单号。每行均需填写。</div>
+    <div class="table-wrap"><table style="min-width:520px"><thead><tr>
+      <th>序号</th><th>光缆类型</th><th>光缆名称</th><th>入库量确认</th><th>入库工单号 *</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="stage-fields">${smsBlock()}
     <div class="modal-foot"><button class="btn-sm ghost" onclick="closeModal()">取消</button>
       <button class="btn-sm ok" onclick="doInboundNo('${o.id}')">确认入库单</button></div></div>`);
 }
 function doInboundNo(id){
   const o=DB.orders.find(x=>x.id===id);if(!o)return;
-  const inNo=document.getElementById('i_inNo').value.trim();
-  if(!inNo){toast('请填写入库工单号');return}
+  const vals=(o.rows||[]).map((r,i)=>{
+    const el=document.getElementById('i_inNo_'+i);return el?el.value.trim():'';
+  });
+  if(vals.some(v=>!v)){toast('请为每条光缆填写入库工单号');return}
   if(!verifySMS())return;
-  // 兼容字段：qty/confirmQty 取已确认数量，供旧统计口径使用
-  const qty=o.qtyCheck?o.qtyCheck.qty:0;
-  o.inbound={qty, confirmQty:qty, inNo, by:curUser().name,t:fmtTime(Date.now()),sms:true};
+  (o.rows||[]).forEach((r,i)=>{r.inNo=vals[i]});
+  const qty=(o.qtyCheck?o.qtyCheck.qty:0);
+  const uniqNos=[...new Set(vals)].join('/');
+  o.inbound={qty, confirmQty:qty, inNo:uniqNos, by:curUser().name,t:fmtTime(Date.now()),sms:true};
   o.status='inbound';
-  o.history.push({a:'填写入库单 '+inNo+'，闭环',by:curUser().name,t:fmtTime(Date.now())});
-  saveDB();closeModal();refreshAll();toast('入库单已登记，工单闭环');
+  o.history.push({a:'填写入库单（逐行）'+uniqNos+'，闭环',by:curUser().name,t:fmtTime(Date.now())});
+  saveDB();closeModal();refreshAll();toast('入库单已逐行登记，工单闭环');
 }
 function showApprove(o){
   const r=o.resubmit;
