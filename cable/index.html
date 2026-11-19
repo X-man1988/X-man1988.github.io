@@ -36,6 +36,7 @@ body{
   background:#fff;color:var(--primary);font-weight:600;max-width:260px
 }
 .toolbtns{display:flex;gap:8px;flex-wrap:wrap}
+.super-only{display:none!important} /* 备份管理工具默认隐藏，仅戴黎可见（renderIdentity 控制） */
 .btn{
   font-size:14px;padding:0 14px;min-height:44px;border:none;border-radius:9px;cursor:pointer;
   display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap;
@@ -233,10 +234,10 @@ tr:nth-child(even) td{background:#fafbfd}
       </div>
       <div class="toolbtns">
         <button class="btn solid" onclick="exportCSV(true)"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出Excel</button>
-        <button class="btn" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
-        <button class="btn" onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 5h14"/></svg>导入恢复</button>
-        <button class="btn" onclick="clearSample()">清空示例</button>
-        <button class="btn" onclick="clearAll()">清空全部</button>
+        <button class="btn super-only" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
+        <button class="btn super-only" onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 5h14"/></svg>导入恢复</button>
+        <button class="btn super-only" onclick="clearSample()">清空示例</button>
+        <button class="btn super-only" onclick="clearAll()">清空全部</button>
         <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importJSON(event)">
       </div>
     </div>
@@ -570,9 +571,14 @@ function verifySMS(){
 /* ============================================================
    渲染层（各自独立，只读数据、只改自己负责的 DOM，互不调用）
    ============================================================ */
+// 超级管理员：仅戴黎(18858001365)可见备份/恢复/清空工具
+const SUPER_ADMIN_ID='u_city_4';
+function isSuperAdmin(){return curUser().id===SUPER_ADMIN_ID}
 function renderIdentity(){
   const u=curUser();
   document.getElementById('curUserLabel').textContent=u.name+'（'+roleName(u)+'·'+u.county+'）';
+  // 备份管理工具仅超级管理员可见
+  document.querySelectorAll('.super-only').forEach(el=>el.style.display=isSuperAdmin()?'':'none');
   document.getElementById('f_county').value=hasRole(u,'city')?'（市公司无上报权限）':u.county;
   const tabs=document.querySelectorAll('.tab[data-view="form"]');
   tabs.forEach(t=>t.style.display=hasRole(u,'mgmt')?'':'none');
@@ -709,7 +715,7 @@ function renderList(){
     </tr>`;
   }).join('');
   const hint=document.getElementById('backupHint');
-  if(DB.orders.length>=30){hint.textContent='数据已积累 '+DB.orders.length+' 条，建议点击右上角「导出备份」保存一份。';hint.classList.add('show')}
+  if(isSuperAdmin()&&DB.orders.length>=30){hint.textContent='数据已积累 '+DB.orders.length+' 条，建议点击右上角「导出备份」保存一份。';hint.classList.add('show')}
   else hint.classList.remove('show');
 }
 
@@ -1088,8 +1094,9 @@ function doApprove(id,ok){
   saveDB();closeModal();refreshAll();toast(ok?'已批准重报：原工单号现可重新上报':'已驳回申请');
 }
 
-/* ---- 数据备份 ---- */
+/* ---- 数据备份（仅超级管理员可用）---- */
 function exportJSON(){
+  if(!isSuperAdmin()){toast('无权限操作');return}
   const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='传输线路缆循管理平台_备份_'+todayStr()+'.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('备份已导出');
@@ -1130,17 +1137,20 @@ function exportCSV(all){
   toast('已导出 '+list.length+' 张工单 / '+rows+' 条光缆明细');
 }
 function importJSON(e){
+  if(!isSuperAdmin()){toast('无权限操作');e.target.value='';return}
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);if(!d.orders||!Array.isArray(d.orders))throw 0;
     DB=d;saveDB();_draft=null;refreshAll();toast('导入成功，共 '+DB.orders.length+' 条')}catch(err){toast('文件格式不正确')}e.target.value=''};
   rd.readAsText(f);
 }
 function clearAll(){
+  if(!isSuperAdmin()){toast('无权限操作');return}
   if(!confirm('⚠ 确认清空全部数据？此操作不可恢复，建议先导出备份。'))return;
   if(!confirm('请再次确认：真的要清空全部工单数据吗？'))return;
   DB={currentUser:DB.currentUser,orders:[]};saveDB();_draft=null;refreshAll();toast('已清空全部数据');
 }
 function clearSample(){
+  if(!isSuperAdmin()){toast('无权限操作');return}
   if(!confirm('清空示例数据？将删除内置的5条示例工单（不影响你自己新增的数据）。'))return;
   const sampleNos=['GJ-2026-001','GJ-2026-002','GJ-2026-003','GJ-2026-004','GJ-2026-005','GJ-2026-006'];
   DB.orders=DB.orders.filter(o=>!sampleNos.includes(o.workNo));saveDB();refreshAll();toast('示例数据已清空');
