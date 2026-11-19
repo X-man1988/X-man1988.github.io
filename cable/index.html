@@ -313,7 +313,7 @@ tr:nth-child(even) td{background:#fafbfd}
           <select id="f_applicant"><option value="">请选择</option></select>
         </div>
         <div class="field"><label>经办人手机号（自动）</label><input id="f_phone" readonly></div>
-        <div class="field"><label>计划回收完成日期</label><input id="f_planDate" type="date"></div>
+        <div class="field"><label>计划回收完成日期</label><input id="f_planDate" type="date" oninput="syncPlanDateFromMain()"></div>
         <div class="field"><label>备注</label><input id="f_remark"></div>
       </div>
       <div id="dupHint" class="hint" style="display:none"></div>
@@ -475,6 +475,7 @@ function fillRowMeta(o){
   (o.rows||[]).forEach(r=>{
     r.rowWorkNo=o.workNo; r.rowCounty=o.county; r.rowProjectName=o.projectName;
     r.rowProjectNo=o.projectNo; r.rowCutoverName=o.cutoverName;
+    if(o.planDate)r.planDate=o.planDate; // 计划完成日期与主表保持一致
   });
 }
 function loadDB(){
@@ -735,7 +736,7 @@ function rowHTML(r,i){
     <td><input type="number" step="0.1" value="${esc(r.planLen)}" oninput="setCell(${i},'planLen',this.value);recalcTotal()"></td>
     <td><input type="number" value="${esc(r.qty)}" oninput="setCell(${i},'qty',this.value);recalcTotal()"></td>
     <td><select onchange="setCell(${i},'material',this.value)">${opt(MATERIALS,r.material)}</select></td>
-    <td><input type="date" value="${esc(r.planDate)}" oninput="setCell(${i},'planDate',this.value)"></td>
+    <td><input type="date" value="${esc(r.planDate)}" oninput="setCell(${i},'planDate',this.value);syncPlanDateFromRow(this.value)"></td>
     <td><input value="${esc(r.handler)}" oninput="setCell(${i},'handler',this.value)"></td>
     <td><select onchange="setCell(${i},'invStatus',this.value)">${opt(INV_STATUS,r.invStatus)}</select></td>
     <td><input value="${esc(r.remark)}" oninput="setCell(${i},'remark',this.value)"></td>
@@ -755,6 +756,21 @@ function syncRowMeta(){
   const vals=[fv('f_workNo'),fv('f_county'),fv('f_projectName'),fv('f_projectNo'),fv('f_cutoverName')];
   document.querySelectorAll('#detailBody tr').forEach(tr=>{
     for(let c=0;c<5;c++){const td=tr.children[c+1];if(td)td.textContent=vals[c]}
+  });
+}
+// 计划完成日期同步：改主表→同步全部明细行；改任一明细行→同步主表+全部明细行（不重绘整表，避免失焦）
+function syncPlanDateFromMain(){
+  const v=document.getElementById('f_planDate').value;
+  (_draft.rows||[]).forEach(r=>r.planDate=v);
+  document.querySelectorAll('#detailBody tr').forEach(tr=>{
+    const td=tr.children[13];const inp=td?td.querySelector('input'):null;if(inp)inp.value=v;
+  });
+}
+function syncPlanDateFromRow(v){
+  document.getElementById('f_planDate').value=v;
+  (_draft.rows||[]).forEach(r=>r.planDate=v);
+  document.querySelectorAll('#detailBody tr').forEach(tr=>{
+    const td=tr.children[13];const inp=td?td.querySelector('input'):null;if(inp)inp.value=v;
   });
 }
 
@@ -843,7 +859,7 @@ function initDraft(){
   document.getElementById('f_remark').value='';document.getElementById('dupHint').style.display='none';
   document.getElementById('formTip').textContent='';
 }
-function addRow(){_draft.rows.push(newRow(_draft.rows.length+1));renderAllDetailRows()}
+function addRow(){const r=newRow(_draft.rows.length+1);const v=document.getElementById('f_planDate').value;if(v)r.planDate=v;_draft.rows.push(r);renderAllDetailRows()}
 function delRow(i){if(_draft.rows.length<=1){toast('至少保留一行');return}_draft.rows.splice(i,1);_draft.rows.forEach((r,j)=>r.seq=j+1);renderAllDetailRows()}
 function setCell(i,k,v){_draft.rows[i][k]=v}
 function onWorkNoInput(){
