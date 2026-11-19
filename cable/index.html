@@ -111,11 +111,13 @@ tr:nth-child(even) td{background:#fafbfd}
 /* ---------- form ---------- */
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.req{color:#e55353;margin-left:2px;font-weight:700}
 .field input,.field select{
   width:100%;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;min-height:44px;
   background:#fff;color:var(--text)
 }
 .field input[readonly]{background:#f2f5f9;color:var(--muted)}
+.invalid{border-color:#e55353!important;box-shadow:0 0 0 3px rgba(229,83,83,.18);background:#fff5f5!important}
 .detail-table input,.detail-table select{font-size:15px;padding:6px;width:100%;border:1px solid var(--line);border-radius:6px;min-height:38px}
 .detail-table td{padding:5px}
 .form-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
@@ -297,14 +299,14 @@ tr:nth-child(even) td{background:#fafbfd}
       <div class="form-grid">
         <div class="field"><label>割接工单号 *（唯一）</label><input id="f_workNo" placeholder="如 GJ-2026-001" oninput="onWorkNoInput();syncRowMeta()"></div>
         <div class="field"><label>区县（自动带出）</label><input id="f_county" readonly></div>
-        <div class="field"><label>工程/项目名称</label><input id="f_projectName" oninput="syncRowMeta()"></div>
-        <div class="field"><label>项目单号</label><input id="f_projectNo" oninput="syncRowMeta()"></div>
-        <div class="field"><label>割接名称</label><input id="f_cutoverName" oninput="syncRowMeta()"></div>
+        <div class="field"><label>工程/项目名称 <span class="req">*</span></label><input id="f_projectName" oninput="syncRowMeta()"></div>
+        <div class="field"><label>项目单号 <span class="req">*</span></label><input id="f_projectNo" oninput="syncRowMeta()"></div>
+        <div class="field"><label>割接名称 <span class="req">*</span></label><input id="f_cutoverName" oninput="syncRowMeta()"></div>
         <div class="field"><label>指定经办人（白名单）</label>
           <select id="f_applicant"><option value="">请选择</option></select>
         </div>
         <div class="field"><label>经办人手机号（自动）</label><input id="f_phone" readonly></div>
-        <div class="field"><label>计划回收完成日期</label><input id="f_planDate" type="date" oninput="syncPlanDateFromMain()"></div>
+        <div class="field"><label>计划回收完成日期 <span class="req">*</span></label><input id="f_planDate" type="date" oninput="syncPlanDateFromMain()"></div>
         <div class="field"><label>备注</label><input id="f_remark"></div>
       </div>
       <div id="dupHint" class="hint" style="display:none"></div>
@@ -318,11 +320,11 @@ tr:nth-child(even) td{background:#fafbfd}
             <th style="min-width:140px">工程/项目名称</th>
             <th style="min-width:110px">项目单号</th>
             <th style="min-width:140px">割接名称</th>
-            <th style="min-width:96px">光缆类型</th>
-            <th style="min-width:120px">光缆名称</th>
-            <th style="min-width:70px">芯数</th>
-            <th style="min-width:96px">设计回收(米)</th>
-            <th style="min-width:104px">计划回收长度(米)</th>
+            <th style="min-width:96px">光缆类型 <span class="req">*</span></th>
+            <th style="min-width:120px">光缆名称 <span class="req">*</span></th>
+            <th style="min-width:70px">芯数 <span class="req">*</span></th>
+            <th style="min-width:96px">设计回收(米) <span class="req">*</span></th>
+            <th style="min-width:104px">计划回收长度(米) <span class="req">*</span></th>
             <th style="min-width:96px">回收数量(盘/段)</th>
             <th style="min-width:130px">配套回收物料</th>
             <th style="min-width:120px">计划完成日期</th>
@@ -715,11 +717,11 @@ function rowHTML(r,i){
     <td style="${metaStyle}">${esc(fv('f_projectName'))}</td>
     <td style="${metaStyle}">${esc(fv('f_projectNo'))}</td>
     <td style="${metaStyle}">${esc(fv('f_cutoverName'))}</td>
-    <td><select onchange="setCell(${i},'cableType',this.value)">${opt(CABLE_TYPES,r.cableType)}</select></td>
-    <td><input value="${esc(r.cableName)}" oninput="setCell(${i},'cableName',this.value)"></td>
-    <td><input type="number" value="${esc(r.cores)}" oninput="setCell(${i},'cores',this.value)"></td>
-    <td><input type="number" step="0.1" value="${esc(r.designLen)}" oninput="setCell(${i},'designLen',this.value);recalcTotal()"></td>
-    <td><input type="number" step="0.1" value="${esc(r.planLen)}" oninput="setCell(${i},'planLen',this.value);recalcTotal()"></td>
+    <td><select id="r_cableType_${i}" onchange="setCell(${i},'cableType',this.value)">${opt(CABLE_TYPES,r.cableType)}</select></td>
+    <td><input id="r_cableName_${i}" value="${esc(r.cableName)}" oninput="setCell(${i},'cableName',this.value)"></td>
+    <td><input id="r_cores_${i}" type="number" value="${esc(r.cores)}" oninput="setCell(${i},'cores',this.value)"></td>
+    <td><input id="r_designLen_${i}" type="number" step="0.1" value="${esc(r.designLen)}" oninput="setCell(${i},'designLen',this.value);recalcTotal()"></td>
+    <td><input id="r_planLen_${i}" type="number" step="0.1" value="${esc(r.planLen)}" oninput="setCell(${i},'planLen',this.value);recalcTotal()"></td>
     <td><input type="number" value="${esc(r.qty)}" oninput="setCell(${i},'qty',this.value);recalcTotal()"></td>
     <td><select onchange="setCell(${i},'material',this.value)">${opt(MATERIALS,r.material)}</select></td>
     <td><input type="date" value="${esc(r.planDate)}" oninput="setCell(${i},'planDate',this.value);syncPlanDateFromRow(this.value)"></td>
@@ -892,15 +894,41 @@ function onApplicantChange(name){
   const w=(WHITELIST[curUser().county]||[]).find(x=>x.name===name);
   document.getElementById('f_phone').value=w?w.phone:'';
 }
+// 校验失败：提示 + 高亮缺失字段并滚动定位
+function markInvalid(id,msg){
+  toast(msg);
+  document.querySelectorAll('.invalid').forEach(e=>e.classList.remove('invalid'));
+  const e=document.getElementById(id);
+  if(e){e.classList.add('invalid');try{e.scrollIntoView({behavior:'smooth',block:'center'})}catch(_){}try{e.focus()}catch(_){}
+    setTimeout(()=>e.classList.remove('invalid'),2600)}
+}
+// 必填项校验：主表 + 每条光缆明细行，全部通过返回 true
+function validateForm(){
+  const workNo=document.getElementById('f_workNo').value.trim();
+  if(!workNo){markInvalid('f_workNo','请填写割接工单号');return false}
+  if(DB.orders.find(o=>o.workNo===workNo)){toast('工单号重复，请走二次提交申请');onWorkNoInput();return false}
+  if(!document.getElementById('f_applicant').value){markInvalid('f_applicant','请选择指定经办人');return false}
+  // 主表必填项
+  if(!document.getElementById('f_projectName').value.trim()){markInvalid('f_projectName','请填写工程/项目名称');return false}
+  if(!document.getElementById('f_projectNo').value.trim()){markInvalid('f_projectNo','请填写项目单号');return false}
+  if(!document.getElementById('f_cutoverName').value.trim()){markInvalid('f_cutoverName','请填写割接名称');return false}
+  if(!document.getElementById('f_planDate').value){markInvalid('f_planDate','请选择计划回收完成日期');return false}
+  // 明细行必填项：光缆类型 / 光缆名称 / 芯数 / 设计回收(米) / 计划回收长度(米)
+  const reqCols=[['cableType','光缆类型'],['cableName','光缆名称'],['cores','芯数'],['designLen','设计回收(米)'],['planLen','计划回收长度(米)']];
+  for(let i=0;i<_draft.rows.length;i++){
+    const r=_draft.rows[i];
+    for(const [k,label] of reqCols){
+      if(String(r[k]==null?'':r[k]).trim()===''){markInvalid('r_'+k+'_'+i,'第 '+(i+1)+' 行的「'+label+'」为必填项');return false}
+    }
+  }
+  return true;
+}
 function submitOrder(){
   const u=curUser();
   if(!hasRole(u,'mgmt')){toast('仅区县迁改管理员可上报');return}
+  if(!validateForm())return;
   const workNo=document.getElementById('f_workNo').value.trim();
-  if(!workNo){toast('请填写割接工单号');return}
-  if(DB.orders.find(o=>o.workNo===workNo)){toast('工单号重复，请走二次提交申请');onWorkNoInput();return}
   const applicant=document.getElementById('f_applicant').value;
-  if(!applicant){toast('请选择指定经办人');return}
-  if(!_draft.rows.some(r=>String(r.cableName||'').trim())){toast('请至少填写一条光缆名称');return}
   openModal(`<h3>提交上报 · 确认</h3>
     <div class="kv"><div class="k">割接工单号</div><div>${esc(workNo)}</div>
       <div class="k">经办人</div><div>${esc(applicant)} · ${esc(document.getElementById('f_phone').value)}</div>
@@ -909,6 +937,7 @@ function submitOrder(){
       <button class="btn-sm" onclick="doSubmit()">确认提交</button></div>`);
 }
 function doSubmit(){
+  if(!validateForm())return;   // 二次守卫：防止绕过确认弹窗直接提交
   const workNo=document.getElementById('f_workNo').value.trim();
   const o={id:uid(),workNo,county:curUser().county,
     projectName:document.getElementById('f_projectName').value.trim(),projectNo:document.getElementById('f_projectNo').value.trim(),
