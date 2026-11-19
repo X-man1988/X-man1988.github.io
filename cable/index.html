@@ -78,6 +78,9 @@ body{
 .stat .num{font-size:26px;font-weight:800;color:var(--primary)}
 .stat .lbl{font-size:12px;color:var(--muted);margin-top:2px}
 .stat.ok .num{color:var(--ok)} .stat.warn .num{color:var(--warn)} .stat.danger .num{color:var(--danger)}
+.stat.clickable{cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s,border-color .15s}
+.stat.clickable:hover{background:var(--primary-soft);border-color:var(--primary2);transform:translateY(-2px);box-shadow:0 5px 14px rgba(31,78,121,.16)}
+.stat.clickable:active{transform:translateY(0)}
 /* ---------- tabs ---------- */
 .tabs{display:flex;gap:6px;border-bottom:2px solid var(--line);margin-bottom:16px;overflow-x:auto}
 .tab{
@@ -93,6 +96,8 @@ body{
 .query-grid .field label{font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:600}
 .query-grid .field input,.query-grid .field select{width:100%;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-height:42px}
 .query-foot{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.filter-chip{display:none;align-items:center;gap:8px;background:var(--primary-soft);color:var(--primary);border:1px solid var(--primary2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;margin-bottom:10px;width:fit-content}
+.filter-chip button{background:none;border:none;color:var(--danger);cursor:pointer;font-weight:700;font-size:13px;padding:0 2px}
 @media(max-width:768px){.query-grid{grid-template-columns:1fr}}
 /* ---------- table ---------- */
 .table-wrap{overflow-x:auto}
@@ -261,7 +266,8 @@ tr:nth-child(even) td{background:#fafbfd}
       <div class="muted" id="listScopeNote" style="margin-bottom:10px"></div>
       <!-- 工单查询 -->
       <div class="query-bar">
-        <div class="query-title">工单查询 <span class="muted" style="font-weight:400">按条件组合筛选</span></div>
+        <div class="query-title">工单查询 <span class="muted" style="font-weight:400">点击上方「数据概览」数字即可联动筛选</span></div>
+        <div class="filter-chip" id="filterChip"></div>
         <div class="query-grid">
           <div class="field"><label>关键词（工单号/工程/项目单号/割接名称）</label><input id="q_key" placeholder="输入关键词" oninput="renderList()"></div>
           <div class="field"><label>区县</label><select id="q_county" onchange="renderList()"><option value="">全部区县</option></select></div>
@@ -525,11 +531,17 @@ function getTodo(){
 }
 function calcStats(){
   const l=visibleOrders();
+  // 已入库合计(米)：取已入库工单的实际拆回长度(dismantle.len)；旧数据无拆回记录时按计划回收兜底
+  const inboundLen=l.filter(o=>o.status==='inbound').reduce((a,o)=>{
+    const d=o.dismantle&&o.dismantle.len;
+    const len=(d!=null&&d!=='')?Number(d):sumField(o,'planLen');
+    return a+(Number(len)||0);
+  },0);
   return {total:l.length,reported:l.filter(o=>o.status==='reported').length,pushed:l.filter(o=>o.status==='pushed').length,
     qtyChecked:l.filter(o=>o.status==='qty_checked').length,
     inbound:l.filter(o=>o.status==='inbound').length,overdue:l.filter(isOverdue).length,
     reapprove:l.filter(o=>o.resubmit&&o.resubmit.need&&o.resubmit.approved===null).length,
-    len:l.reduce((a,o)=>a+sumField(o,'planLen'),0)};
+    len:l.reduce((a,o)=>a+sumField(o,'planLen'),0),inboundLen:inboundLen};
 }
 
 /* ============================================================
@@ -599,12 +611,42 @@ function renderTodo(){
 
 function renderStats(){
   const s=calcStats();
-  const cell=(n,l,c='')=>`<div class="stat ${c}"><div class="num">${n}</div><div class="lbl">${l}</div></div>`;
+  const cell=(n,l,c='',type='')=>`<div class="stat ${c} ${type?'clickable':''}" ${type?`onclick="drillDown('${type}')" title="点击查看对应工单"`:''}><div class="num">${n}</div><div class="lbl">${l}</div></div>`;
   document.getElementById('statsBox').innerHTML=
-    cell(s.total,'可见工单总数')+cell(s.reported,'待确认拆回','warn')+cell(s.pushed,'待确认数量')+
-    cell(s.qtyChecked,'待填入库单')+cell(s.inbound,'已入库闭环','ok')+cell(s.overdue,'逾期','danger')+
-    cell(s.len.toLocaleString(),'计划回收合计(米)')+cell(getTodo().length,'我的待办')+cell(s.reapprove,'待审批重报','warn');
+    cell(s.total,'可见工单总数','','total')+cell(s.reported,'待确认拆回','warn','reported')+cell(s.pushed,'待确认数量','','pushed')+
+    cell(s.qtyChecked,'待填入库单','','qtyChecked')+cell(s.inbound,'已入库闭环','ok','inbound')+cell(s.overdue,'逾期','danger','overdue')+
+    cell(s.len.toLocaleString(),'计划回收合计(米)','','total')+cell(s.inboundLen.toLocaleString(),'已入库合计(米)','ok','inboundLen')+
+    cell(getTodo().length,'我的待办','','todo')+cell(s.reapprove,'待审批重报','warn','reapprove');
 }
+
+/* ---- 数据概览 → 工单查询 联动 ---- */
+let STATS_FILTER=null; // null | 'overdue' | 'todo' | 'reapprove'（状态类直接走 q_status，无需此变量）
+const STATS_STATUS={reported:'reported',pushed:'pushed',qtyChecked:'qty_checked',inbound:'inbound',inboundLen:'inbound'};
+function drillDown(type){
+  STATS_FILTER=null;
+  switchTab('list');
+  ['q_key','q_county','q_status','q_from','q_to','q_inNo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  if(STATS_STATUS[type]){
+    const sel=document.getElementById('q_status');if(sel)sel.value=STATS_STATUS[type];
+  }else if(type==='overdue'||type==='todo'||type==='reapprove'){
+    STATS_FILTER=type;
+  }
+  updateFilterChip();
+  renderList();
+  const qb=document.querySelector('.query-bar');
+  if(qb&&qb.scrollIntoView)qb.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function updateFilterChip(){
+  const chip=document.getElementById('filterChip');if(!chip)return;
+  const map={overdue:'逾期工单',todo:'我的待办',reapprove:'待审批重报'};
+  if(STATS_FILTER&&map[STATS_FILTER]){
+    chip.style.display='inline-flex';
+    chip.innerHTML='统计联动：'+map[STATS_FILTER]+' <button type="button" onclick="clearStatFilter()">✕ 清除</button>';
+  }else{
+    chip.style.display='none';chip.innerHTML='';
+  }
+}
+function clearStatFilter(){STATS_FILTER=null;updateFilterChip();renderList()}
 
 // 查询过滤：在区县隔离后的可见数据里按条件筛选
 function filterOrders(){
@@ -633,10 +675,15 @@ function filterOrders(){
     }
     return true;
   });
+  // 数据概览联动的额外筛选（与普通查询条件叠加）
+  if(STATS_FILTER==='overdue')list=list.filter(isOverdue);
+  else if(STATS_FILTER==='todo'){const ids=new Set(getTodo().map(t=>t.o.id));list=list.filter(o=>ids.has(o.id))}
+  else if(STATS_FILTER==='reapprove')list=list.filter(o=>o.resubmit&&o.resubmit.need&&o.resubmit.approved===null);
   return list;
 }
 function resetQuery(){
   ['q_key','q_county','q_status','q_from','q_to','q_inNo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  STATS_FILTER=null;updateFilterChip();
   renderList();toast('查询条件已重置');
 }
 function renderList(){
