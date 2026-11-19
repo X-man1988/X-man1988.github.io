@@ -215,7 +215,7 @@ tr:nth-child(even) td{background:#fafbfd}
   position:relative;padding:40px 38px;color:#eaf2ff;overflow:hidden;
   background:linear-gradient(150deg,rgba(23,72,135,.72),rgba(9,28,55,.86));
   border-right:1px solid rgba(150,200,255,.14);
-  display:flex;flex-direction:column;min-height:520px;
+  display:flex;flex-direction:column;justify-content:center;min-height:520px;
 }
 .login-brand::before{
   content:"";position:absolute;left:-80px;bottom:-120px;width:360px;height:360px;border-radius:50%;
@@ -224,16 +224,10 @@ tr:nth-child(even) td{background:#fafbfd}
 .brand-top{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
 .brand-logo{width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,#2f7fe0,#19b6c6);box-shadow:0 8px 22px rgba(30,130,220,.4)}
 .brand-logo svg{width:28px;height:28px}
-.brand-name{font-size:13px;font-weight:800;letter-spacing:2px;color:#fff;line-height:1.25}
-.brand-name span{display:block;font-size:10px;font-weight:500;letter-spacing:3px;color:rgba(190,220,255,.65);margin-top:2px}
-.brand-main{margin-top:56px;position:relative;z-index:1}
+.brand-main{margin-top:34px;position:relative;z-index:1}
 .brand-eyebrow{font-size:10px;letter-spacing:3.5px;color:#5fd6e6;font-weight:700;margin-bottom:14px}
 .brand-main h1{font-size:34px;line-height:1.32;margin:0 0 16px;font-weight:800;letter-spacing:1px;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.3)}
 .brand-main p{font-size:13.5px;line-height:1.9;color:rgba(214,232,255,.78);margin:0}
-.brand-features{list-style:none;margin:34px 0 0;padding:0;position:relative;z-index:1;display:flex;flex-direction:column;gap:14px}
-.brand-features li{display:flex;align-items:center;gap:11px;font-size:12.5px;color:rgba(224,238,255,.86)}
-.brand-features i{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:50%;background:rgba(80,200,230,.14);border:1px solid rgba(95,214,230,.4);color:#6fe0ee;font-style:normal;font-size:12px}
-.brand-foot{position:relative;z-index:1;margin-top:auto;padding-top:26px;display:flex;justify-content:space-between;align-items:center;font-size:9.5px;letter-spacing:1.6px;color:rgba(180,210,245,.45)}
 .login-panel{padding:44px 40px 26px;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(13,30,56,.55),rgba(7,18,36,.72))}
 .form-head{margin-bottom:28px}
 .form-eyebrow{font-size:10px;letter-spacing:3px;color:#5fd6e6;font-weight:700;margin-bottom:8px}
@@ -251,9 +245,6 @@ tr:nth-child(even) td{background:#fafbfd}
 .btn-login:active{transform:translateY(0)}
 .btn-login::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-22deg);animation:lgShine 4.2s ease-in-out infinite}
 @keyframes lgShine{0%,55%{left:-60%}80%,100%{left:130%}}
-.login-note{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:18px;font-size:11px;color:rgba(175,202,232,.55)}
-.login-note svg{width:13px;height:13px}
-.login-copyright{margin-top:auto;padding-top:22px;text-align:center;font-size:10.5px;color:rgba(160,190,225,.4);letter-spacing:.5px}
 @media(max-width:780px){
   .login-mask{padding:14px;align-items:flex-start}
   .login-shell{grid-template-columns:1fr;max-width:440px;margin:auto}
@@ -277,19 +268,12 @@ tr:nth-child(even) td{background:#fafbfd}
             <path d="M16 6.5v6M16 19.5v6M8.2 11.5l5.2 3M18.6 17.5l5.2 3M23.8 11.5l-5.2 3M13.4 17.5l-5.2 3" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
           </svg>
         </div>
-        <div class="brand-name">CHINA MOBILE<span>TRANSMISSION ASSET CYCLE</span></div>
       </div>
       <div class="brand-main">
         <div class="brand-eyebrow">ENTERPRISE OPERATIONS PLATFORM</div>
         <h1>传输线路缆循<br>管理平台</h1>
         <p>光缆拆旧 · 物料回收 · 盘点入库<br>全流程数字化闭环管理</p>
       </div>
-      <ul class="brand-features">
-        <li><i>✓</i>区县分级授权 · 数据隔离管控</li>
-        <li><i>✓</i>全流程留痕 · 原始上报不可变</li>
-        <li><i>✓</i>多角色协同 · 闭环可追溯</li>
-      </ul>
-      <div class="brand-foot"><span>NINGBO · TRANSMISSION LINE MANAGEMENT</span><span>V 1.0</span></div>
     </section>
     <!-- 登录表单区 -->
     <section class="login-panel login-card">
@@ -317,11 +301,6 @@ tr:nth-child(even) td{background:#fafbfd}
         </div>
       </div>
       <button class="btn-login" onclick="doLogin()">登 录</button>
-      <div class="login-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z"/></svg>
-        企业级安全登录 · 账号由管理员统一分配
-      </div>
-      <div class="login-copyright">© 2026 传输线路缆循管理平台 · 内部系统</div>
     </section>
   </div>
 </div>
