@@ -245,6 +245,10 @@ tr:nth-child(even) td{background:#fafbfd}
 .btn-login:active{transform:translateY(0)}
 .btn-login::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-22deg);animation:lgShine 4.2s ease-in-out infinite}
 @keyframes lgShine{0%,55%{left:-60%}80%,100%{left:130%}}
+.login-recover{margin-top:16px;text-align:center;font-size:12px;color:rgba(190,214,242,.6)}
+.login-recover button{background:none;border:none;color:#5fd6e6;font-size:12px;cursor:pointer;padding:4px 2px;text-decoration:underline;margin-left:4px}
+.login-recover button:hover{color:#8ae9f5}
+.recover-code{font-family:var(--ff-code,Consolas,monospace);font-size:15px;letter-spacing:1px;word-break:break-all;background:rgba(56,182,214,.1);border:1px dashed #38b6d6;border-radius:8px;padding:10px 12px;text-align:center;color:#5fd6e6;font-weight:700}
 @media(max-width:780px){
   .login-mask{padding:14px;align-items:flex-start}
   .login-shell{grid-template-columns:1fr;max-width:440px;margin:auto}
@@ -301,6 +305,10 @@ tr:nth-child(even) td{background:#fafbfd}
         </div>
       </div>
       <button class="btn-login" onclick="doLogin()">登 录</button>
+      <div class="login-recover">
+        <span>换电脑登录？</span>
+        <button onclick="openRecoverCode()">用恢复码迁移密码</button>
+      </div>
     </section>
   </div>
 </div>
@@ -315,6 +323,7 @@ tr:nth-child(even) td{background:#fafbfd}
         <label>当前登录</label>
         <span id="curUserLabel" style="font-weight:700"></span>
         <button class="btn" style="margin-left:4px" onclick="openChangePwd(false)">修改密码</button>
+        <button class="btn" style="margin-left:4px" onclick="showMyRecoverCode()">我的恢复码</button>
         <button class="btn" style="margin-left:4px" onclick="logout()">退出登录</button>
       </div>
       <div class="toolbtns">
@@ -968,7 +977,80 @@ function doChangePwd(force){
   savePwdStore(s);
   PWD_FORCE=false;
   closeModal();
-  toast('密码已修改，下次登录请使用新密码');
+  const code=makeRecoverCode(u.id,p1);
+  showRecoverCode(code);   // 改密后立即给出恢复码，供换电脑迁移
+}
+/* ---- 密码恢复码（换电脑迁移用；恢复码等价于密码，务必妥善保管）---- */
+function b64enc(str){
+  const bytes=new TextEncoder().encode(str);let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin);
+}
+function b64dec(b64){
+  const bin=atob(b64);const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));return new TextDecoder().decode(bytes);
+}
+function makeRecoverCode(uid,pwd){
+  const raw=uid+'|'+pwd;
+  let sum=0;for(const c of raw)sum=(sum+c.charCodeAt(0))%1296;
+  const ck=sum.toString(36).padStart(2,'0').toUpperCase();
+  let enc=b64enc(raw).replace(/=+$/,'');
+  const groups=enc.match(/.{1,5}/g).join('-');
+  return 'CLB-'+ck+'-'+groups;
+}
+function parseRecoverCode(code){
+  if(!code)return null;
+  const s=String(code).trim().replace(/\s+/g,'');
+  const m=s.match(/^CLB-([0-9A-Za-z]{2})-([A-Za-z0-9+/=-]+)$/);
+  if(!m)return null;
+  let enc=m[2].replace(/-/g,'').replace(/=+$/,'');while(enc.length%4)enc+='=';
+  let raw;try{raw=b64dec(enc)}catch(e){return null}
+  let sum=0;for(const c of raw)sum=(sum+c.charCodeAt(0))%1296;
+  if(sum.toString(36).padStart(2,'0').toUpperCase()!==m[1].toUpperCase())return null;
+  const i=raw.indexOf('|');if(i<0)return null;
+  return {uid:raw.slice(0,i),pwd:raw.slice(i+1)};
+}
+function showRecoverCode(code){
+  openModal(`<h3>密码恢复码（请妥善保存）</h3>
+    <div class="hint show" style="margin-bottom:12px">换电脑时，在登录页点「用恢复码迁移密码」，输入下面这串码即可把新密码迁移过去。<br><b>恢复码等同于密码</b>，请勿发给他人或公开发群里。</div>
+    <div class="recover-code" id="recoverCodeText">${esc(code)}</div>
+    <div class="modal-foot" style="justify-content:flex-start">
+      <button class="btn-sm ghost" onclick="copyRecoverCode()">复制恢复码</button>
+      <button class="btn-sm" onclick="closeModal()">我已保存</button>
+    </div>`);
+}
+function showMyRecoverCode(){
+  const u=curUser();if(!u){toast('请先登录');return}
+  const rec=getPwdRec(u.id);
+  if(rec.initial){toast('您还在使用初始密码，请先修改密码');return}
+  showRecoverCode(makeRecoverCode(u.id,rec.pwd));
+}
+function copyRecoverCode(){
+  const el=document.getElementById('recoverCodeText');const text=el?el.textContent:'';
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>toast('恢复码已复制')).catch(()=>toast('请手动抄下恢复码'))}
+  else toast('请手动抄下恢复码');
+}
+// 登录页：打开恢复码输入弹窗
+function openRecoverCode(){
+  openModal(`<h3>用恢复码迁移密码</h3>
+    <div class="hint show" style="margin-bottom:12px">在原来电脑上改密后生成的恢复码（CLB 开头），输入后即可把密码迁移到这台电脑。</div>
+    <div class="row"><label>恢复码</label><input id="recoverInput" placeholder="CLB-XX-XXXXX-XXXXX" autocomplete="off" style="font-family:var(--ff-code,Consolas,monospace)"></div>
+    <div class="modal-foot">
+      <button class="btn-sm ghost" onclick="closeModal()">取消</button>
+      <button class="btn-sm" onclick="applyRecoverCode()">确认迁移</button>
+    </div>`);
+}
+function applyRecoverCode(){
+  const code=document.getElementById('recoverInput').value;
+  const r=parseRecoverCode(code);
+  if(!r){toast('恢复码无效或已损坏，请检查后重试');return}
+  const u=USERS.find(x=>x.id===r.uid);
+  if(!u){toast('恢复码不属于授权人员');return}
+  const s=loadPwdStore();
+  s[u.id]={pwd:r.pwd,updatedAt:new Date().toISOString()};  // 清除 initial 标记
+  savePwdStore(s);
+  document.getElementById('loginName').value=u.name;
+  document.getElementById('loginPhone').value=u.phone;
+  const inp=document.getElementById('recoverInput');if(inp)inp.value='';
+  closeModal();
+  toast('密码已迁移到本机，请填写新密码登录');
 }
 function newRow(seq){return {seq,cableType:'GYTA',cableName:'',cores:'',designLen:'',planLen:'',qty:'',material:'无',planDate:todayStr(),handler:'',invStatus:'待回收',remark:'',inQty:null,inNo:''}}
 function initDraft(){
