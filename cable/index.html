@@ -884,10 +884,12 @@ function loadPwdStore(){
 function savePwdStore(s){localStorage.setItem(PWD_KEY,JSON.stringify(s))}
 function getPwdRec(uid){
   const s=loadPwdStore();
-  return s[uid]||{pwd:INIT_PWD,updatedAt:new Date().toISOString()};
+  // 无记录 = 从未改过密码，仍是初始密码：打 initial 标记、updatedAt 置空
+  return s[uid]||{pwd:INIT_PWD,updatedAt:null,initial:true};
 }
 function pwdExpired(rec){
-  if(!rec||!rec.updatedAt)return true;
+  if(!rec)return true;
+  if(rec.initial||!rec.updatedAt)return true;   // 初始密码：首次登录即强制修改
   return (Date.now()-new Date(rec.updatedAt).getTime())/86400000>=PWD_EXPIRE_DAYS;
 }
 function normalizePhone(p){return String(p||'').replace(/[\s-]/g,'')}
@@ -921,7 +923,8 @@ function doLogin(){
   document.getElementById('appWrap').style.display='';
   refreshAll();
   toast('登录成功：'+u.name);
-  if(pwdExpired(rec))openChangePwd(true);   // 每 30 天强制更换一次
+  // 首次使用初始密码、或密码超过 30 天，均强制修改
+  if(pwdExpired(rec))openChangePwd(true,!!rec.initial);
 }
 function logout(){
   localStorage.removeItem(SESSION_KEY);
@@ -930,11 +933,14 @@ function logout(){
   document.getElementById('loginMask').style.display='flex';
 }
 /* ---- 修改密码 ---- */
-function openChangePwd(force){
-  const f=!!force;
+function openChangePwd(force,isFirst){
+  const f=!!force, first=!!isFirst;
   PWD_FORCE=f;
-  openModal(`<h3>${f?'密码到期 · 请修改密码':'修改密码'}</h3>
-    ${f?'<div class="hint show" style="margin-bottom:12px">您的密码已使用超过 30 天，按月度更换要求，请先设置新密码。</div>':''}
+  const title=first?'首次登录 · 请修改初始密码':(f?'密码到期 · 请修改密码':'修改密码');
+  const tip=first?'您当前使用的是初始密码 123456，为保障账号安全，请先设置一个专属新密码（至少 6 位）。设置后方可继续使用本平台。'
+                 :'您的密码已使用超过 30 天，按月度更换要求，请先设置新密码。设置后方可继续使用本平台。';
+  openModal(`<h3>${title}</h3>
+    ${f?`<div class="hint show" style="margin-bottom:12px">${tip}</div>`:''}
     <div class="row"><label>当前密码</label><input id="cpOld" type="password" placeholder="请输入当前密码"></div>
     <div class="row"><label>新密码</label><input id="cpNew" type="password" placeholder="至少 6 位"></div>
     <div class="row"><label>确认新密码</label><input id="cpNew2" type="password" placeholder="再次输入新密码"></div>
@@ -1287,6 +1293,9 @@ function init(){
     document.getElementById('loginMask').style.display='none';
     document.getElementById('appWrap').style.display='';
     refreshAll();
+    // 会话恢复时同样校验：初始密码/到期未改，仍强制修改，防止刷新绕过
+    const rec=getPwdRec(sessionUser.id);
+    if(pwdExpired(rec))openChangePwd(true,!!rec.initial);
   }else{
     document.getElementById('loginMask').style.display='flex';
     document.getElementById('appWrap').style.display='none';
