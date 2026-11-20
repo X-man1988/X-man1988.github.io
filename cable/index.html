@@ -320,6 +320,7 @@ tr:nth-child(even) td{background:#fafbfd}
       <div class="toolbtns">
         <button class="btn solid" onclick="exportCSV(true)"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出Excel</button>
         <button class="btn super-only" onclick="exportJSON()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>导出备份</button>
+        <button class="btn super-only" onclick="openAutoBackup()"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>自动备份设置</button>
         <button class="btn super-only" onclick="document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 5h14"/></svg>导入恢复</button>
         <button class="btn super-only" onclick="clearSample()">清空示例</button>
         <button class="btn super-only" onclick="clearAll()">清空全部</button>
@@ -475,6 +476,7 @@ const SESSION_KEY='wb_cable_recycle_session';
 const PWD_KEY='wb_cable_recycle_pwd_v1';       // 按用户保存密码与修改时间
 const INIT_PWD='123456';                        // 初始密码
 const PWD_EXPIRE_DAYS=30;                       // 密码有效期：30 天（每月更换一次）
+const AUTO_BK_KEY='wb_cable_autobackup_v1';     // 自动备份配置：{enabled,hour,lastDate,dirName}
 const REGIONS=['海曙区','江北区','鄞州区','镇海区','北仑区','奉化区','余姚市','慈溪市','象山县','宁海县'];
 const CABLE_TYPES=['GYTA','GYTS','ADSS','OPGW','其他'];
 const CABLE_TYPE_MAP={'骨干光缆':'GYTA','本地光缆':'GYTS','接入光缆':'GYTS','GYTA':'GYTA','GYTS':'GYTS','ADSS':'ADSS','OPGW':'OPGW','其他':'其他'};
@@ -863,6 +865,7 @@ function refreshAll(){
   renderTodo();
   renderStats();
   renderList();
+  renderAutoBackupUI();
   if(document.getElementById('view-form').classList.contains('active'))renderAllDetailRows();
 }
 
@@ -922,6 +925,7 @@ function doLogin(){
   document.getElementById('loginMask').style.display='none';
   document.getElementById('appWrap').style.display='';
   refreshAll();
+  startAutoBackupTimer();
   toast('登录成功：'+u.name);
   // 首次使用初始密码、或密码超过 30 天，均强制修改
   if(pwdExpired(rec))openChangePwd(true,!!rec.initial);
@@ -1225,6 +1229,118 @@ function exportJSON(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='传输线路缆循管理平台_备份_'+todayStr()+'.json';a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('备份已导出');
 }
+
+/* ---- 自动备份（浏览器内定时任务）----
+   机制：平台页面打开期间，每 60 秒检查一次；到达设定时间(默认12:00)且当天尚未备份时，
+        自动生成 JSON 备份并下载。已绑定文件夹时用 File System Access API 直接写入。
+   注意：纯前端限制——必须当天打开过平台页面才会触发；页面关闭时无法后台执行。 */
+const AUTO_BK_DIR_HANDLE_KEY='wb_cable_autobackup_dir';  // IndexedDB 中保存的目录句柄键
+let _autoBkHandle=null;   // 已授权的目录句柄（运行时缓存）
+function getAutoBkCfg(){
+  try{return Object.assign({enabled:true,hour:12,lastDate:'',dirName:''},JSON.parse(localStorage.getItem(AUTO_BK_KEY)||'{}'))}
+  catch(e){return {enabled:true,hour:12,lastDate:'',dirName:''}}
+}
+function setAutoBkCfg(c){localStorage.setItem(AUTO_BK_KEY,JSON.stringify(c))}
+// 用浏览器 File System Access API 选择备份文件夹（一次授权，后续免选）
+async function pickBackupDir(){
+  if(!window.showDirectoryPicker){toast('当前浏览器不支持文件夹授权，将使用浏览器默认下载目录');return}
+  try{
+    const h=await window.showDirectoryPicker({mode:'readwrite'});
+    _autoBkHandle=h;
+    await saveDirHandle(h);
+    const cfg=getAutoBkCfg();cfg.dirName=h.name;setAutoBkCfg(cfg);
+    toast('备份文件夹已绑定：'+h.name);
+    renderAutoBackupUI();
+  }catch(e){ if(e&&e.name!=='AbortError')toast('绑定文件夹失败：'+e.message) }
+}
+// 读取已保存的目录句柄（若浏览器支持且曾授权）
+async function getSavedDirHandle(){
+  if(_autoBkHandle)return _autoBkHandle;
+  if(!window.indexedDB||!window.showDirectoryPicker)return null;
+  try{
+    const db=await new Promise((res,rej)=>{const r=indexedDB.open('wb_cable_fs',1);r.onupgradeneeded=()=>r.result.createObjectStore('dirs');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+    const h=await new Promise((res,rej)=>{const t=db.transaction('dirs','readonly').objectStore('dirs').get(AUTO_BK_DIR_HANDLE_KEY);t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error)});
+    if(h){const p=await h.queryPermission({mode:'readwrite'});if(p==='granted')_autoBkHandle=h;return _autoBkHandle}
+  }catch(e){}
+  return null;
+}
+async function saveDirHandle(h){
+  if(!window.indexedDB)return;
+  try{
+    const db=await new Promise((res,rej)=>{const r=indexedDB.open('wb_cable_fs',1);r.onupgradeneeded=()=>r.result.createObjectStore('dirs');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+    await new Promise((res,rej)=>{const t=db.transaction('dirs','readwrite').objectStore('dirs').put(h,AUTO_BK_DIR_HANDLE_KEY);t.onsuccess=()=>res();t.onerror=()=>rej(t.error)});
+  }catch(e){}
+}
+// 生成备份 JSON 文本（与手动导出一致的数据结构）
+function buildBackupText(){return JSON.stringify(DB,null,2)}
+// 执行一次备份（manual=true 表示用户手动点击测试）
+async function doAutoBackup(manual){
+  if(!isSuperAdmin()){toast('无权限操作');return}
+  const cfg=getAutoBkCfg();
+  const fname='传输线路缆循管理平台_备份_'+todayStr()+'.json';
+  const text=buildBackupText();
+  const h=await getSavedDirHandle();
+  let done=false;
+  if(h){
+    try{
+      const fh=await h.getFileHandle(fname,{create:true});
+      const w=await fh.createWritable();await w.write(text);await w.close();
+      done=true;
+    }catch(e){}
+  }
+  if(!done){
+    const blob=new Blob([text],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  cfg.lastDate=todayStr();setAutoBkCfg(cfg);
+  const where=done?('文件夹「'+(cfg.dirName||'已授权目录')+'」'):'浏览器下载目录';
+  toast((manual?'备份测试完成':'自动备份完成')+'：'+fname+' → '+where);
+  renderAutoBackupUI();
+}
+// 检查是否到了当日备份时间
+function checkAutoBackup(){
+  const cfg=getAutoBkCfg();
+  if(!cfg.enabled)return;
+  const now=new Date();
+  if(now.getHours()<cfg.hour)return;
+  if(cfg.lastDate===todayStr())return;   // 今天已备份，跳过
+  doAutoBackup(false);
+}
+// 打开自动备份设置弹窗
+function openAutoBackup(){
+  if(!isSuperAdmin()){toast('无权限操作');return}
+  const cfg=getAutoBkCfg();
+  openModal(`<h3>自动备份设置</h3>
+    <div class="hint show" style="margin-bottom:14px">
+      每天 <b>${cfg.hour}:00</b> 后首次打开平台且当天未备份时，自动生成 JSON 备份。<br>
+      <b>注意</b>：必须当天打开过平台页面才会触发；页面关闭时前端无法后台执行。
+    </div>
+    <div class="kv">
+      <div class="k">自动备份</div><div>${cfg.enabled?'<span style="color:var(--ok);font-weight:700">已开启</span>':'<span style="color:var(--muted)">已关闭</span>'}</div>
+      <div class="k">备份时间</div><div>每天 ${cfg.hour}:00 之后</div>
+      <div class="k">备份目录</div><div>${cfg.dirName?esc(cfg.dirName):'<span style="color:var(--muted)">未绑定（使用浏览器下载目录）</span>'}</div>
+      <div class="k">上次备份</div><div>${cfg.lastDate||'<span style="color:var(--muted)">从未备份</span>'}</div>
+    </div>
+    <div class="modal-foot" style="justify-content:flex-start;flex-wrap:wrap">
+      <button class="btn-sm" onclick="toggleAutoBackup()">${cfg.enabled?'关闭自动备份':'开启自动备份'}</button>
+      <button class="btn-sm ghost" onclick="pickBackupDir()">绑定备份文件夹</button>
+      <button class="btn-sm ghost" onclick="doAutoBackup(true)">立即备份测试</button>
+      <button class="btn-sm ghost" onclick="closeModal()">关闭</button>
+    </div>`);
+}
+function toggleAutoBackup(){
+  const cfg=getAutoBkCfg();cfg.enabled=!cfg.enabled;setAutoBkCfg(cfg);
+  toast(cfg.enabled?'自动备份已开启':'自动备份已关闭');openAutoBackup();
+}
+function renderAutoBackupUI(){
+  const hint=document.getElementById('backupHint');if(!hint||!isSuperAdmin())return;
+  const cfg=getAutoBkCfg();
+  hint.innerHTML='自动备份：'+(cfg.enabled?'<b style="color:var(--ok)">已开启</b>':'<b>已关闭</b>')+
+    ' · 每天 '+cfg.hour+':00 · '+(cfg.dirName?'目录「'+esc(cfg.dirName)+'」':'浏览器下载目录')+
+    ' · 上次备份：'+(cfg.lastDate||'无');
+  hint.className='hint show';
+}
 // 导出当前查询结果为 CSV（Excel 可直接打开），按光缆维度逐行，字段对齐原表+各环节确认
 function csvCell(v){
   const s=String(v==null?'':v);
@@ -1293,6 +1409,7 @@ function init(){
     document.getElementById('loginMask').style.display='none';
     document.getElementById('appWrap').style.display='';
     refreshAll();
+    startAutoBackupTimer();
     // 会话恢复时同样校验：初始密码/到期未改，仍强制修改，防止刷新绕过
     const rec=getPwdRec(sessionUser.id);
     if(pwdExpired(rec))openChangePwd(true,!!rec.initial);
@@ -1300,6 +1417,13 @@ function init(){
     document.getElementById('loginMask').style.display='flex';
     document.getElementById('appWrap').style.display='none';
   }
+}
+// 自动备份定时器：页面打开期间每 60 秒检查一次（仅超级管理员）
+let _autoBkTimer=null;
+function startAutoBackupTimer(){
+  if(_autoBkTimer)return;
+  checkAutoBackup();
+  _autoBkTimer=setInterval(()=>{if(document.getElementById('loginMask').style.display==='none')checkAutoBackup()},60000);
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
